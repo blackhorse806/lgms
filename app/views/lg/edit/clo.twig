@@ -1,0 +1,519 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+    <script>
+        $.ajaxSetup({cache: false});
+        var g_clos = null;
+        var g_ulos = {{ outcomes|json_encode|raw }};
+        var g_ulo_count = 0;
+        var g_is_dirty = false;
+        var g_selected = null;
+
+		calc_ulo_count();
+
+        $(document).ready(function() {
+            load_clos();
+
+            $(window).bind('beforeunload', function() {
+                if (g_is_dirty) {
+                    return 'You have not saved your changes.';
+                }
+            });
+
+            // When a clo is clicked on provide prompt to enter new clo
+            $("#outcomes").on("click", "tr .clo", function() {
+                var text = $(this).attr("title");
+                var clo = prompt("Enter new CLO item: ", text);
+
+                $(this).attr("title", clo);
+                $(this).text(trimString(clo, 25));
+            });
+
+            // Catch changes to table introduction
+            $('body').on('change', '#course_intro', function() {
+                g_is_dirty = true;
+            });
+            // Catch changes to contribution table
+            $('body').on('change', '.contribution', function() {
+                g_is_dirty = true;
+            });
+
+            // When a course is selected begin loading it
+            $("#selected_course").change(function() {
+                if ($("#selected_course").val() != "") {
+                    // Update global variables
+                    selected.table_id = $("#selected_course").val();
+                    selected.course_code = get_course_code($("#selected_course").val());
+                    // Change display
+                    $("#selected_course").prop("disabled", "disabled");
+                    $("#form").hide();
+                    $("#loading").show();
+                    reset_form();
+                    // Load and show data
+                    populate_form();
+                    $("#loading").hide();
+                    $("#form").show();
+                    $("#selected_course").removeAttr("disabled");
+                } else {
+                    // Hide table
+                    $("#form").hide();
+                    $("#loading").hide();
+                    reset_form();
+                }
+            });
+        });
+
+        function calc_ulo_count() {
+            g_ulo_count = 0;
+            for (var i = 0; i < g_ulos.length; i++) {
+                if (g_ulos[i].number != null && g_ulos[i].number != "") {
+                    g_ulo_count++;
+                }
+            }
+        }
+
+        // Get a json object from a database table
+        function load_clos() {
+            //reset_form();
+            $.ajax({
+                url: "{{ urlFor('/lg/get/clos', {'lg_id':core.lg_id}) }}",
+                method: "GET",
+                dataType: "text",
+                success: function(result) {
+					          g_clos = null;
+                    if (result != null && result != "0 results") {
+                        g_clos = JSON.parse(result);
+                        //console.log(g_clos);
+                        $("#loading").hide();
+                        populate_unit_course();
+                    }
+                }
+            });
+        }
+
+        function populate_unit_course() {
+            if (g_clos == null) {
+                return;
+            }
+            var html = "";
+            html += "<table>";
+            for (var i = 0; i < g_clos.length; i++) {
+                if (g_clos[i].hasOwnProperty('deleted')) {
+                    continue;
+                }
+                if (g_selected == i) {
+                    html += "<tr class='unselectable row_highlight row_selected' id='row" + i + "'>";
+                } else {
+                    html += "<tr class='unselectable row_highlight' id='row" + i + "'>";
+                }
+
+                html += "<td style='padding-right:10px;' onclick=\"populate_form(" + i + ")\">";
+                html += g_clos[i].course_code + "</td><td onclick=\"populate_form(" + i + ")\">" + g_clos[i].course_name;
+                html += "</td><td>&nbsp;<span class='glyphicon glyphicon-pencil' aria-hidden='true'></span>";
+                html += "</td><td>&nbsp;<span class='glyphicon glyphicon-remove' aria-hidden='true' onclick='remove_table(" + i + ")'></span></td></tr>";
+            }
+            html += "</table>";
+            $("#unit_course_list").html(html);
+        }
+
+        // Loads a specific course into the form. Gets data for clos and ulo_clos
+        function populate_form(selected) {
+            if (g_is_dirty) {
+                extract_form_data();
+            }
+            g_selected = selected;
+            $(".row_highlight").removeClass("row_selected");
+            $("#row" + selected).addClass("row_selected");
+
+            $('html, body').animate({
+                scrollTop: $("#load_location").offset().top
+            }, 200);
+            var course = g_clos[selected];
+            var html = "";
+            // Create table head
+            html += "<table id='CLO_ULO_table'>";
+            if (course.course_code == "1") {
+                html += "<tr><th colspan=2 rowspan=2>Graduate Attributes</th><th colspan=" + g_ulo_count + ">ULO's</th>";
+            } else {
+                html += "<tr><th colspan=2 rowspan=2>CLO</th><th colspan=" + g_ulo_count + ">ULO's</th>";
+            }
+
+            html += "<tr>";
+            for (var i = 0; i < g_ulo_count; i++) {
+                html += "<td class='num'>" + (i + 1) + "</td>";
+            }
+            html += "</tr>"
+
+            // Build table with clo and ulo nums
+            for (var clo = 0; clo < course.course_outcomes.length; clo++) {
+                if (selected.course_code == "1") {
+                    html += "<tr><td>GA " + (clo + 1) + "</td>";
+                } else {
+                    html += "<tr><td>CLO " + (clo + 1) + "</td>";
+                }
+                html += "<td title='" + course.course_outcomes[clo].outcome + "'>" + trimString(course.course_outcomes[clo].outcome, 30) + "</td>";
+                // Build ulo cells
+                for (var ulo = 0; ulo < g_ulo_count; ulo++) {
+                    html += "<td class='data'>";
+                    html += "<select class='contribution x" + (ulo + 1) + "y" + (clo + 1) + "'>";
+                    html += "<option value=''>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</option>";
+                    html += "<option value='I'>I</option>";
+                    html += "<option value='D'>D</option>";
+                    html += "<option value='A'>A</option>";
+                    html += "</select>";
+                    html += "</td>";
+                }
+                html += "</tr>";
+            }
+            html += "</table><br>";
+            $("#table_container").html(html);
+            $("#course_title").html(course.course_code + ": " + course.course_name);
+            $("#course_intro").val(course.course_intro);
+            $("#loading").hide();
+            $("#form").show();
+            populate_contributions();
+        }
+
+        // Loads specific clo_ulos into table
+        function populate_contributions() {
+            var course = g_clos[g_selected];
+            var contributions = course.contributions;
+            for (var y = 0; y < contributions.length; y++) {
+                var row = contributions[y];
+                for (var x = 0; x < row.length; x++) {
+                    if (row[x] != null) {
+                        $(".x" + (x + 1) + "y" + (y + 1)).val(row[x].contribution);
+                    }
+                }
+            }
+        }
+
+        // Extracts data from the form and adds new values where needed
+        function extract_form_data() {
+            if (g_selected == null) {
+                return;
+            }
+            for (var y = 0; y < g_clos[g_selected].course_outcomes.length; y++) {
+                for (var x = 0; x < g_ulo_count; x++) {
+                    var cellval = $(".x" + (x + 1) + "y" + (y + 1)).val();
+                    if (cellval != null && cellval != "") {
+                        if (g_clos[g_selected].contributions[y][x] == null) {
+                            g_clos[g_selected].contributions[y][x] = {};
+                            g_clos[g_selected].contributions[y][x].clo_table_id = g_clos[g_selected].id;
+                            g_clos[g_selected].contributions[y][x].clo_num = (y + 1);
+                            g_clos[g_selected].contributions[y][x].ulo_num = (x + 1);
+                            g_clos[g_selected].contributions[y][x].id = null;
+                        }
+                        g_clos[g_selected].contributions[y][x].contribution = cellval;
+                    } else if (cellval == "" && g_clos[g_selected].contributions[y][x] != null) {
+                        g_clos[g_selected].contributions[y][x].contribution = cellval;
+                    }
+                }
+            }
+            g_clos[g_selected].course_intro = $("#course_intro").val();
+        }
+
+        function remove_table(selected) {
+            if (confirm("Are you sure you want to delete this table?")) {
+                g_clos[selected].deleted = true;
+                populate_unit_course();
+                if (selected == g_selected) {
+                    reset_form();
+                }
+				g_is_dirty = true;
+            }
+        }
+
+        function add_course_table() {
+            $("#add_table_button").addClass("disabled");
+            $("#add_table_button").attr("onclick", "");
+            var clo_table = {};
+            clo_table.course_code = $("#new_course_selected").val();
+            clo_table.course_intro = "";
+
+            var json = JSON.stringify(clo_table);
+
+            // Send request for new table to be created
+            $.ajax({
+                url: "{{ urlFor('/lg/put/add_course', {"lg_id":core.lg_id}) }}",
+                method: "POST",
+                data: {
+                    json: json
+                },
+                dataType: "text",
+                success: function(result) {
+                    //console.log(result);
+                    if (result == "success") {
+                        // convert result json text into json object
+                        $("#form").hide();
+                        reset_form();
+                        load_clos();
+                    } else {
+                        alert("Failed to add Course!\nMessage: " + result);
+                    }
+                    // Enable add button
+                    $("#add_table_button").removeClass("disabled");
+                    $("#add_table_button").attr("onclick", "add_course_table();");
+                }
+            });
+        }
+
+        // Resets the coure table form
+        function reset_form() {
+            $("#table_container").html("");
+            $("#course_intro").val("");
+        }
+
+        // Submits the data to the database
+        function Submit() {
+            extract_form_data();
+
+            // Hide form while processing and sending data
+            $("#form").hide();
+            $("#button_save").text("Saving...");
+            $("#loading").show();
+
+			  //console.log(Hello!);
+	          console.log(g_clos);
+
+            var json = JSON.stringify(g_clos);
+
+            // Send data to database
+            $.ajax({
+                url: '{{ urlFor('/lg/put/clos', {"lg_id":core.lg_id}) }}',
+                dataType: 'text',
+                data: {
+                    json: json
+                },
+                type: 'POST',
+                success: function(data) {
+                    // Check success when complete
+                    if (data == "success") {
+                        $('html, body').animate({
+                            scrollTop: $("body").offset().top
+                        }, 200);
+                        $('#submitted').hide();
+                        $('#submitted').fadeIn(1000);
+                        $('#submitted').fadeOut(2000);
+
+						            g_is_dirty = false;
+                    } else {
+                        alert("Something went wrong submitting data. \n Message:" + data);
+                    }
+                    $("#loading").hide();
+                    $("#loading").text("Loading...");
+                    load_clos();
+                    $("#save").attr("disabled", false);
+                    $("#remove_table_button").attr("disabled", false);
+                    $("#button_save").text("Save");
+                }
+            });
+        }
+
+        // Trims string to set characters and add "..." if longer
+        function trimString(str, length) {
+            if (str == null) {
+                return;
+            }
+            var reduced = "";
+            if (str.length > length) {
+                reduced = str.substring(0, length) + "...";
+            } else {
+                reduced = str;
+            }
+            return reduced;
+        }
+    </script>
+{% endblock %}
+
+{% block css %}
+    <link href="/css/clo.css" rel="stylesheet">
+    <style>
+        #key,
+        #outcomesTable {
+            font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+            font-size: 14px;
+        }
+        .row_highlight:hover {
+            background-color: #BFEFFF;
+        }
+
+        .row_selected {
+            background-color: #BFEFFF;
+        }
+
+    </style>
+{% endblock %}
+
+{% block jumbotron %}
+    <h1>Session Detail</h1>
+    <p class="lead">Enter sessional details for the unit.<br>
+        Use the tabs to change between different forms.</p>
+{% endblock %}
+
+{% block content %}
+    {{ include('lg/edit/_tabs.twig') }}
+    <div>
+        <div id='submitted' class='alert alert-success' role='alert' hidden>
+            <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
+            Data Submitted</div>
+    </div>
+    <h3>2.3 Contribution to Course Learning Outcomes</h3>
+    <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+    The Contribution to Course Learning Outcomes table explains how the unit learning outcomes relate to the learning outcomes of a course.<br>
+    <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+    Courses will need to be added if they are not in the dropdown selection. This can be done with the
+    <b>Add New Contribution Table</b>
+    button.<br>
+    <br>
+
+    <div class='form-group'>
+        <div class='panel panel-default'>
+            <div class='panel-body'>
+                <h3>Step 1:</h3>
+                <p>Add any missing courses</p>
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#ModalAddCourse">Add New Contribution Table</button>
+                <br><br>
+            </div>
+        </div>
+    </div>
+
+    <div class='form-group'>
+        <div class='panel panel-default'>
+            <div class='panel-body'>
+                <h3>Step 2:</h3>
+                <p>Select an existing course</p>
+                <div id="select_course">
+                    <form class="form-horizontal">
+                        <label>Existing Courses:</label>
+                        <div id="unit_course_list">
+                            <table>
+                                {% for course in courses %}
+                                    <tr class="row_highlight unselectable" onclick="alert('hello' + $(this).text() )">
+                                        <td style="padding-right:10px;">
+                                            {{ course.course_code }}</td>
+                                        <td>{{ course.name }}
+                                        </td>
+                                        <td>
+                                            &nbsp;<span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>
+                                            &nbsp;<span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </table>
+                        </div>
+                    </form>
+                </div>
+                <div id="load_location"></div>
+                <br><br>
+            </div>
+        </div>
+    </div>
+
+    <div class='form-group'>
+        <div class='panel panel-default'>
+            <div class='panel-body'>
+                <h3>Step 3:</h3>
+                <p>Edit contribution to course</p>
+                <div id="outcomes_content">
+                    <div id="loading">
+                        <img src="/img/saving.gif">
+                    </div>
+                    <br>
+                    <div id="form" class="form-horizontal" hidden>
+                        <form>
+                            <h4 id="course_title"></h4>
+                            <label>Table Introduction</label>
+                            <textarea class='form-control' rows='5' id="course_intro" placeholder="Not Required."></textarea>
+                            <br>
+                            <label>Table</label>
+                            <p>Click on the green boxes to select a contribution type. The key for the letters can be found below.</p>
+                            <div id="table_container"></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class='form-group'>
+        <div class='panel panel-default'>
+            <div class='panel-body'>
+                <h3>Step 4:</h3>
+                <p>Save all Course Contribution changes</p>
+                <button type="button" class="btn btn-primary" onclick="Submit()" id="button_save">Save</button>
+                <br><br>
+            </div>
+        </div>
+    </div>
+
+    <div class='form-group'>
+        <div class='panel panel-default'>
+            <div class='panel-body'>
+                <h3>Reference Information</h3>
+                <br>
+                <p>
+                    <h4>Key</h4>
+                    <table id="key">
+                        <tr>
+                            <td>
+                                <p>I:&nbsp;</p>
+                            </td>
+                            <td>
+                                <p>Introduced</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <p>D:&nbsp;</p>
+                            </td>
+                            <td>
+                                <p>Developed</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <p>A:&nbsp;</p>
+                            </td>
+                            <td>
+                                <p>Assured</p>
+                            </td>
+                        </tr>
+                    </table>
+                </p>
+                <br>
+
+                <h4>Unit Learning Outcomes<h4>
+                        {{ include('lg/_unit_outcomes.twig') }}
+                        <br><br>
+                    </div>
+                </div>
+            </div>
+            <br><br>
+
+            <!-- Add Course Modal -->
+            <div id="ModalAddCourse" class="modal fade" role="dialog">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal">&times;</button>
+                            <h4 class="modal-title">Add Course</h4>
+                        </div>
+                        <div class="modal-body">
+                            <select id="new_course_selected">
+                                {% for course in all_courses %}
+                                    <option value='{{ course.code }}'>{{ course.code }}:
+                                        {{ course.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <br><br>
+                            <button id="add_table_button" type="button" class="btn btn-primary" data-dismiss="modal" onclick="add_course_table();">Add</button>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        {% endblock %}

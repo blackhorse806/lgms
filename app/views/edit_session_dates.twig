@@ -1,0 +1,283 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+<!-- dependencies (jquery, handlebars and bootstrap) -->
+<script type="text/javascript" src="/js/handlebars.min.js"></script>
+<!-- alpaca -->
+<script type="text/javascript" src="/js/alpaca.min.js"></script>
+<!-- Date time picker -->
+<script type="text/javascript" src="/js/moment-with-locales.min.js"></script>
+<script type="text/javascript" src="/js/bootstrap-datetimepicker.min.js"></script>
+<script>
+	var g_data = null;
+	var g_lock = false;
+	var g_has_changed = false;
+
+	window.onbeforeunload = function(event) {
+		if (g_has_changed)
+	    	return "You have unsaved changes. Are you sure you want to navigate away?";
+	};
+
+	$(document).ready(function(){
+		pull_data();
+
+        $("#year").on("change", function() {
+            console.log($(this).val());
+        });
+
+        $("#session").on("change", function() {
+            console.log($(this).val());
+        });
+
+	});
+
+	function pull_data() {
+		console.log($("#year").val());
+		console.log($("#session").val());
+		$.ajax({
+			url: '{{ urlFor('/edit_session_dates/get', { "variation_id" : variation_id }) }}',
+			method: "POST",
+			data: { year : $("#year").val(), session : $("#session").val() },
+			dataType: "text",
+			success: function(result) {
+				if (result != null && result != "0 results") {
+					g_data = JSON.parse(result);
+					console.log(g_data);
+					populate_form(g_data);
+				}
+			}
+		});
+	}
+
+	function populate_form(data) {
+		$("#form1").html("");
+		$("#form1").alpaca({
+			"data": data,
+			"schema": {
+				"type": "array",
+				"items": {
+		            "type": "object",
+		            "properties": {
+						"id": {
+							"type": "string",
+							"title": "ID"
+						},
+						"session": {
+							"type": "string",
+							"title": "Session",
+							"enum": {{ sessions|json_encode|raw }},
+						},
+						"year": {
+							"type": "string",
+							"title": "Year",
+							"enum": {{ years|json_encode|raw }},
+						},
+						"week": {
+							"type": "string",
+							"title": "Week"
+						},
+						"week_date": {
+							"type": "string",
+							"title": "Date",
+							"format": "date"
+						},
+						"week_type": {
+							"type": "string",
+							"title": "Type",
+							"enum": ["Week", "Break", "Stuvac", "Exams"],
+						}
+					}
+				}
+			},
+			"toolbarSticky": true,
+			"options": {
+				"events": {
+                    "change": function() {
+						g_has_changed = true;
+                        console.log("Change");
+						$('.alpaca-container').css("padding-bottom", "250px");
+                    }
+				},
+				"type": "table",
+				"items": {
+					"fields": {
+						"id": {
+							"type": "hidden"
+						},
+						"week": {
+							"size": "1",
+						},
+						"week_date": {
+							"type": "date",
+							"dateFormat": "YYYY-MM-DD",
+						},
+						"week_type": {
+							"type": "select",
+						}
+					}
+				},
+				"actionbar": {
+					"actions": [{
+						"action": "add",
+						"click": function() {
+							var value = this.getValue();
+							value.push({
+							});
+							this.setValue(value);
+						}
+						}, {
+							"action": "remove"
+						}, {
+							"action": "up",
+							"enabled": false
+						}, {
+							"action": "down",
+							"enabled": false
+					}]
+				},
+				"form": {
+				   "buttons": {
+					   "submit": {
+						   "title": "Save",
+						   "click": save
+					   }
+				   }
+			   }
+		   },
+		   "postRender": function(control) {
+			//    $('[data-alpaca-container-item-name="d24"]').addClass("alpaca-field-object");
+			//    $('[data-key="submit"]').addClass("btn-primary");
+			//    for (var i = 0; i < 100; i++) {
+			// 	   $('[data-alpaca-container-item-name="d24_' + i + '_number"]').width(60);
+			//    }
+				$('.alpaca-container').css("padding-bottom", "250px");
+				$(".actionbar").width(80);
+				$('[data-key="submit"]').addClass("btn-primary");
+		   }
+		});
+	}
+
+	function find_deleted(loaded, modified) {
+		var deleted = [];
+		if (loaded != null) {
+			for (var i = 0; i < loaded.length; i++) {
+				var find_id = loaded[i].id
+				var found = false;
+				for (var j = 0; j < modified.length; j++) {
+					if (modified[j].id == find_id) {
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					deleted.push(find_id);
+				}
+			}
+		}
+		return deleted;
+	}
+
+	function save() {
+		if (g_lock){
+			return;
+		}
+		g_lock = true;
+		$(".alpaca-form-button-submit").addClass("disabled");
+		$(".alpaca-form-button-submit").html("Saving...");
+
+		var data = $("#form1").alpaca().getValue();
+		console.log(JSON.stringify(data));
+
+		var deleted = find_deleted(g_data, data);
+
+		g_data = data;
+
+		// Replace undefined values with empty string
+		for (var variable in g_data) {
+			if (g_data.hasOwnProperty(variable)) {
+				if (typeof g_data[variable] === 'undefined') {
+					g_data[variable] = "";
+				}
+			}
+		}
+
+		console.log(g_data);
+
+		console.log(g_data.outcomes);
+
+		console.log(deleted);
+
+		$.ajax({
+			url: '{{ urlFor('/edit_session_dates/save', { "variation_id" : variation_id }) }}',
+			dataType: 'text',
+			data: {data : JSON.stringify(g_data), delete : JSON.stringify(deleted)},
+			type: 'POST',
+			success: function(data){
+				console.log(data);
+				if (data=="success") {
+					$('#submitted').hide();
+					$('#submitted').fadeIn(1000);
+					setTimeout(function() {
+						$('#submitted').fadeOut(2000);
+					}, 2000);
+					pull_data();
+					g_has_changed = false;
+				} else {
+					alert("Error: Could not save.\nMessage: " + data);
+				}
+				$(".alpaca-form-button-submit").removeClass("disabled");
+				$(".alpaca-form-button-submit").html("Save");
+				g_lock = false;
+			}
+		});
+	}
+</script>
+{% endblock %}
+
+{% block css %}
+	<link type="text/css" href="/css/alpaca.min.css" rel="stylesheet"/>
+	<link type="text/css" href="/css/bootstrap.min.css" rel="stylesheet"/>
+	<link type="text/css" href="/css/bootstrap-datetimepicker.min.css" rel="stylesheet"/>
+	<style media="screen">
+		#submitted {
+			position: fixed;
+			top: 75px;
+			right: 50px;
+			width: 200px;
+		}
+	</style>
+{% endblock %}
+
+{% block content %}
+<h1>Session Dates</h1>
+<div style="text-align: left;">
+<br>
+<div id='submitted' hidden><div class="alert alert-success" role="alert">Data Saved <span class="glyphicon glyphicon-ok" aria-hidden="true"></span></div></div>
+<p>
+	Select year and session, then click Load Weeks. Weeks can then be edited.
+</p>
+<p>
+	Save before changing session or year
+</p>
+<p>
+	Be careful updating these after the Learning Guides have been scheduled, the dates will update in all the Learning Guides for this session.
+</p>
+<select id="year">
+    {% for item in years %}
+        <option>{{ item }}</option>
+    {% endfor %}
+</select>
+<select id="session">
+    {% for item in sessions %}
+        <option>{{ item }}</option>
+    {% endfor %}
+</select>
+<button type="button" class="btn sm-btn btn-default" onclick="pull_data()">Load Weeks</button>
+<br><br>
+
+<div id="form1"></div>
+</div>
+
+<br><br>
+</div>
+{% endblock %}

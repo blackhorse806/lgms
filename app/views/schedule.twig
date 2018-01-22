@@ -1,0 +1,57 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+{% endblock %}
+
+
+{% block css %}
+<style>
+
+</style>
+{% endblock %}
+
+{% block jumbotron %}
+<h1>Schedule Learning Guide</h1>
+<p class="lead">Create a new instance of a Learning Guide from data in CAMS</p>
+{% endblock %}
+
+{% block content %}
+
+<form action="{{ urlFor('/schedule')}}" method="post">
+	<label>Unit Code</label>
+	<input type="text" class="form-control" name="unit_code" />
+
+	<label>Year</label>
+	<select name="year" class="form-control">
+		{% for year in years %}
+		    <option>{{ year }}</option>
+		{% endfor %}
+	</select>
+
+	<label>Session</label>
+	<select name="session" class="form-control">
+		{% for session in sessions %}
+		    <option>{{ session }}</option>
+		{% endfor %}
+	</select>
+
+	<label>Mode</label>
+	<select name="mode" class="form-control">
+		{% for mode in modes %}
+			<option>{{ mode }}</option>
+		{% endfor %}
+	</select>
+
+	<label>Unit Coordinator</label>
+	<select name="uc" class="form-control">
+		{% for uc in users %}
+			<option value="{{ uc.id }}">{{ uc.name }}</option>
+		{% endfor %}
+	</select>
+
+	<br><br>
+	<button type="submit" class="btn btn-primary pull-right">Schedule</button>
+</form>
+
+
+{% endblock %}

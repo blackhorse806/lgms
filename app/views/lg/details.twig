@@ -1,0 +1,132 @@
+{% extends "layouts/master.twig" %}
+
+{% block jumbotron %}
+<h1>LG Details</h1>
+<p class="lead">An overview of the unit</p>
+{% endblock %}
+
+{% block content %}
+{{ include('lg/_unit_details.twig') }}
+<div class="panel panel-default">
+	<div class="panel-heading">LG Information</div>
+	<div class="panel-body">
+		<b>Unit code: </b>{{ core.unit_code }}<br>
+		<b>Unit name: </b>{{ core.unit_name }}<br>
+		<b>Unit coordinator: </b>{{ core.unit_coordinator }}<br>
+		<b>DAP: </b>{{ core.reviewer }}<br>
+		<b>Credit points: </b>{{ core.credit_points }}<br>
+		<b>Year: </b>{{ core.year }}<br>
+		<b>Session: </b>{{ core.session }}<br>
+		<b>Class: </b>{{ core.class }}<br>
+		<b>Unit Level: </b>{{ core.unit_level }}<br>
+		<b>Discipline: </b>{{ core.discipline }}<br>
+		<b>Summary: </b>{{ core.handbook_summary }}<br>
+		<b>Essential Equipment: </b>{{ core.essential_equipment }}<br>
+		<b>Legislative Prerequisites: </b>{{ core.legislative_prerequisites }}<br>
+		<b>Assumed Knowledge: </b>{{ core.assumed_knowledge }}<br>
+		<b>Prerequisites: </b>{{ core.prerequisites }}<br>
+		<b>Corequisites: </b>{{ core.corequisites }}<br>
+		<b>Credit Not Counted: </b>{{ core.incompatible }}<br>
+		<b>Attendance Requirements: </b>{{ core.attendance_requirements }}<br>
+		<b>Enrolment Restrictions: </b>{{ core.enrolment_restrictions }}<br>
+		<b>Online Learning Requirements: </b>{{ core.online_learning_requirements }}<br>
+
+		<h3>Modes of Delivery</h3>
+		<table class="datatable">
+			<tr><th>Mode</th><th>Hours</th></tr>
+			{% for mode in modes %}
+			<tr>
+				<td>{{ mode.mode|capitalize }}</td>
+				<td>{{ mode.hours|round(1, 'floor') }}</td>
+			</tr>
+			{% endfor %}
+		</table>
+
+		<h3>Staff</h3>
+		<table class="datatable">
+			<tr><th>Staff type</th><th>Name</th><th>Phone</th><th>Location</th><th>Email</th><th>Consultation</th></tr>
+			{% for person in staff %}
+				<tr>
+					<td>{{ person.type }}</td>
+					<td>{{ person.name }}</td>
+					<td>{{ person.phone }}</td>
+					<td>{{ person.location }}</td>
+					<td>{{ person.email }}</td>
+					<td>{{ person.consultation }}</td>
+				</tr>
+			{% endfor %}
+		</table>
+
+		<h3>Unit Outcomes</h3>
+		{{ include('lg/_unit_outcomes.twig') }}
+
+		<h3>Readings</h3>
+		<table class="datatable">
+			<tr><th>Resource Type</th><th>Reference</th></tr>
+			{% for reading in readings %}
+				<tr>
+					<td>{{ reading.resource_type }}</td>
+					<td>{{ reading.reference }}</td>
+				</tr>
+			{% endfor %}
+		</table>
+
+		<h3>Assessment Summary</h3>
+		{{ include('lg/_unit_ass_summary.twig') }}
+
+		<h3>Assessment Detail</h3>
+		{% for ass in assessments %}
+			<h4><u>{{ ass.name }}</u></h4>
+			<table class='datatable'>
+				<tr><td><b>Weight:</b><td>{{ ass.weight }}%</td></tr>
+				<tr><td><b>Type of Collaboration:</b><td>{{ ass.collaboration }}</td></tr>
+				<tr><td><b>Due:</b><td>{{ ass.due_date }}</td></tr>
+				<tr><td><b>Submission:</b><td>{{ ass.submission }}</td></tr>
+				<tr><td><b>Format:</b><td>{{ ass.format }}</td></tr>
+				<tr><td><b>Length:</b><td>{{ ass.length }}</td></tr>
+				<tr><td><b>Curriculum Mode:</b><td>{{ ass.mode }}</td></tr>
+				<tr><td><b>ULO's Assessed:</b><td>{{ ass.ulos }}</td></tr>
+				<tr><td><b>Threshold:</b><td>{{ ass.threshold|replace({'0':'No', '1':'Yes'}) }}</td></tr>
+				<tr><td><b>Threshold Detail:</b><td>{{ ass.threshold_text }}</td></tr>
+			</table>
+			<br>
+			<b>Resources:</b><br>{{ ass.resources }}<br>
+			<br><b>Instructions:</b><br>{{ ass.instructions|raw }}<br><br>
+			<b>Marking Criteria:</b><br>
+			{% if ass.marking_criteria_type == "table" %}
+				<table class="datatable" >
+					<tr>
+						<th style="font-size:12px;padding:2px">Criteria</th>
+						<th style="font-size:12px;padding:2px">HD</th>
+						<th style="font-size:12px;padding:2px">D</th>
+						<th style="font-size:12px;padding:2px">C</th>
+						<th style="font-size:12px;padding:2px">P</th>
+						<th style="font-size:12px;padding:2px">F</th>
+					</tr>
+				{% for criterias in marking_criteria %}
+				    {% if criterias.id == ass.id %}
+						{% for criteria in criterias.table %}
+							<tr>
+								<td style="font-size:12px;padding:2px">{{ criteria.criteria }}</td>
+								<td style="font-size:12px;padding:2px">{{ criteria.hd }}</td>
+								<td style="font-size:12px;padding:2px">{{ criteria.d }}</td>
+								<td style="font-size:12px;padding:2px">{{ criteria.c }}</td>
+								<td style="font-size:12px;padding:2px">{{ criteria.p }}</td>
+								<td style="font-size:12px;padding:2px">{{ criteria.f }}</td>
+							</tr>
+						{% endfor %}
+					{% endif %}
+				{% endfor %}
+				</table>
+			{% endif %}
+			{% if ass.marking_criteria_type == "rich" %}
+				{{ ass.marking_criteria_rich|raw }}
+			{% endif %}
+			{% if ass.marking_criteria_type == "plain" %}
+				{{ ass.marking_criteria_plain }}
+			{% endif %}
+			<br><br>
+		{% endfor %}
+	</div>
+</div>
+{% endblock %}

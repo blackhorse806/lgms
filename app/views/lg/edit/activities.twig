@@ -1,0 +1,361 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+<script src="/js/nicEdit.js"></script>
+
+<script type="text/javascript">
+	var ischange_flag = false;
+
+	// Run start when document has loaded
+	$(document).ready(function(){
+		get_unit_activities();
+
+		$("body").keypress(function(e){
+		    ischange_flag = true;
+		});
+		$('[data-toggle="tooltip"]').tooltip();
+	});
+
+	$(window).bind('beforeunload', function(){
+		if (ischange_flag) {
+			return 'You have not saved your changes.';
+		}
+	});
+
+	// Set global variables
+	//var g_tbl_col;
+	var g_session_dates;
+	var col_counter = 0;
+	var delete_id = [];
+	var g_data = null;
+
+	// Get a json object of session and year from unit table
+	function get_unit_activities() {
+		$.ajax({
+			url: "{{ urlFor('/lg/get/activities',{'lg_id':core.lg_id}) }}",
+			method: "GET",
+			dataType: "text",
+			success: function(data){start(data);}
+		});
+	}
+
+	// Pull data and create table
+	function start(result) {
+		g_data = JSON.parse(result);
+		console.log(g_data);
+		// Reset values to default
+		g_session_dates = g_data.dates;
+		g_tbl_col = g_data.col;
+		col_counter = 0;
+		delete_id = [];
+		// Show loaidng
+		$("#activity_container").html("");
+		$("#activity_container").hide();
+		$("#load").show();
+		// Generate and populate table
+		generate_table();
+		populate_activity_columns();
+		populate_table_cells();
+		populate_assessment_data();
+		// Show table
+		$("#activity_container").show();
+		$("#load").hide();
+	}
+
+	function populate_table_cells() {
+		if (g_data.data == null) {
+			return;
+		}
+		// Populate columns with data
+		for (var i = 0; i < g_data.data.length; i++) {
+			// Calculate position on table
+			var row = g_data.data[i].week;
+			var col = $("#" + g_data.data[i].col_id).attr("class").replace("col","");
+			// Insert data and id into textarea
+			$(".c" + col + "r" + row).val(g_data.data[i].data);
+			$(".c" + col + "r" + row).attr("id", "d" + g_data.data[i].id);
+		}
+	}
+
+	function populate_assessment_data() {
+		if (g_data.ass == null) {
+			return;
+		}
+		// Loop over each assessment check
+		for (var i = 0; i < g_data.ass.length; i++) {
+			var assessment = g_data.ass[i];
+			var row = g_data.ass[i].week;
+			var ass_num = 0;
+			// Find assessment number
+			for (var j = 0; j < g_data.ass_sum.length; j++) {
+				if (g_data.ass_sum[j].id == assessment.ass_id) {
+					ass_num = j + 1;
+					break;
+				}
+			}
+			// Set id of the checkbox to the record id
+			$(".r" + row + "a" + ass_num).attr("id", "a" + assessment.id);
+			// Set checkbox to check if isChecked is true
+			if (assessment.isChecked == "1") {
+				$(".r" + row + "a" + ass_num).prop('checked', true);
+			}
+		}
+	}
+
+	function populate_activity_columns() {
+		if (g_data.col == null) {
+			return;
+		}
+		// Add columns to table
+		for (var i = 0; i < g_data.col.length; i++) {
+			AddCol();
+			$(".col" + (col_counter)).val(g_data.col[i].col_name);
+			$(".col" + (col_counter)).attr("id", g_data.col[i].id);
+		}
+	}
+
+
+	// Generate activities table
+	function generate_table() {
+		if (g_session_dates == null) {
+			return;
+		}
+
+		var html = "";
+		html += "<table id='act_table'><thead>";
+		html += "<tr><th class='c'>Wk</th><th class='c'>Date</th><th class='c'>Type</th><th class='ca'>Assessments Due</th></tr></thead><tbody>";
+		// Add row for each week in a session
+		for (var i = 0; i < g_session_dates.length; i++) {
+			// convert date string into date object
+			var date_str = new Date(g_session_dates[i].week_date);
+			// Check the type of week and change color of row if not week
+			if (g_session_dates[i].week_type.toLowerCase() != "week") {
+				html += "<tr style='background-color: #BFEFFF;'>";
+			} else {
+				html += "<tr>";
+			}
+			html += "<td class='c'>" + g_session_dates[i].week + "</td>";
+			html += "<td class='c'>" + date_str.getDate() + "-" + (date_str.getMonth()+1) + "-" + date_str.getFullYear() + "</td>";
+			html += "<td class='c'>" + g_session_dates[i].week_type + "</td>";
+			html += "<td class='ca'>" + showAss(i+1) + "</td>";
+			html += "</tr>";
+		}
+		// Set default values
+		col_counter = 0;
+		html += "</tbody></table>";
+		// Output table html to web page
+		$("#activity_container").append(html);
+		$('[data-toggle="tooltip"]').tooltip();
+	}
+
+
+	// Create the checkboxes for the assessments in a week
+	function showAss(row) {
+		var result = "";
+		for (var i = 0; i < g_data.ass_sum.length; i++) {
+			result += "<input class='r" + row + "a" + (i+1) + "' type='checkbox'>" + "<span data-toggle='tooltip' title='" + g_data.ass_sum[i].due_date + "'> " + g_data.ass_sum[i].name + "</span><br>";
+		}
+		return result;
+	}
+
+
+	// Creates html for a column select element
+	function Get_Column_Select(num) {
+		var select = "<select id='' class='col" + num + "'><option></option><option>Topic</option><option>Lecture</option><option>Tutorial</option><option>Workshop</option><option>Prac/Lab</option><option>Instructions</option><option>Independent</option><option>Other</option></select>&nbsp;&nbsp;<span class='glyphicon glyphicon-remove' onclick='RemoveCol(" + num + ")' data-toggle='tooltip' title='Remove Column'></span>";
+		return select;
+	}
+
+	// Adds a column to the activity table
+	function AddCol() {
+		col_counter++;
+		$("#act_table thead tr .ca").before("<th class='c" + col_counter + "'>" + Get_Column_Select(col_counter) + "</th>");
+		$("#act_table tbody tr .ca").each(function (index, element) {
+			$(element).before("<td class='c" + col_counter + "'><textarea rows='3' cols='40' id='' class='form-control c" + col_counter + "r" + (index+1) + "'></textarea></td>");
+		});
+		$('[data-toggle="tooltip"]').tooltip();
+	}
+
+
+	// Removes a column from the activity table
+	function RemoveCol(num) {
+		ischange_flag = true;
+		// if there is an id for the column then add id to delete list
+		if ($(".col" + num).attr("id") != "") {
+			delete_id.push($(".col" + num).attr("id"));
+		}
+		// remove elements from page
+		$(".c" + num).remove();
+	}
+
+
+	// Submits data to database
+	function Submit () {
+		ischange_flag = false;
+		// Setup variables to send to db
+		var act = [];
+		var ass = [];
+		// Counters for the current index
+		var count = 0;
+		var ass_count = 0;
+		// Loop over each column and get data
+		for (var i = 1; i <= col_counter; i++) {
+			// Check that column exists
+			if ($(".c" + i).length > 0) {
+				// Prepare array for new column data
+				act[count] = {};
+				act[count].id = $(".col" + i).attr("id");
+				act[count].name = $(".col" + i).val();
+				act[count].weeks = [];
+				// Counter for week count
+				var wc = 0;
+				// Loop over each cell in the column
+				for (var j = 1; j <= g_session_dates.length; j++) {
+					// See if there is a value or id in the cell
+					if ($(".c" + i + "r" + (j)).val() != "" || $(".c" + i + "r" + (j)).attr("id") != null) {
+						// Prepare arrray for new activity week data
+						act[count].weeks[wc] = {};
+						// Add id
+						if ($(".c" + i + "r" + j).attr('id') == null) {
+							act[count].weeks[wc].id = "";
+						} else {
+							act[count].weeks[wc].id = $(".c" + i + "r" + j).attr('id').replace("d", "");
+						}
+						// Add value in the textarea
+						act[count].weeks[wc].data = $(".c" + i + "r" + j).val();
+						// Get the week_id from the sessional week id
+						act[count].weeks[wc].date_id = g_session_dates[j-1].id;
+						// increment week count
+						wc++;
+					}
+				}
+				// increment column count
+				count++;
+			}
+		}
+
+		// Loop over each week and get assessments
+		for (var j = 1; j <= g_session_dates.length; j++) {
+			// Loop over each assessment in a week
+			for (var a = 1; a <= g_data.ass_sum.length; a++) {
+				// Check if checkbox is checked or has id
+				if ($(".r" + j + "a" + a).is(":checked") || $(".r" + j + "a" + a).attr("id") != null) {
+					// Prepare array for new data
+					ass[ass_count] = {};
+					// Get the id
+					if ($(".r" + j + "a" + a).attr("id") == null) {
+						ass[ass_count].id = "";
+					} else {
+						ass[ass_count].id = $(".r" + j + "a" + a).attr("id").replace("a","");
+					}
+					// Get the week_id from sessional week id
+					ass[ass_count].date_id = g_session_dates[j-1].id;
+					// Get the ass_id from the ass index
+					ass[ass_count].ass_id = g_data.ass_sum[a-1].id;
+					// Get the checked value from checkbox elelment
+					ass[ass_count].isChecked = $(".r" + j + "a" + a).is(":checked");
+					// increment ass counter
+					ass_count++;
+				}
+			}
+		}
+
+		console.log(JSON.stringify(act));
+		console.log(JSON.stringify(delete_id));
+		console.log(JSON.stringify(ass));
+
+
+		$("#activity_container").hide();
+		$('#addcolumn').attr("disabled", true);
+		$('#save').attr("disabled", true);
+		$('#save').html("Saving <img src='/img/saving.gif'>");
+		// Send data to db
+		$.ajax({
+			url: "{{ urlFor('/lg/put/activities', {'lg_id':core.lg_id}) }}",
+			method: "POST",
+			data: { activities : JSON.stringify(act), delete : JSON.stringify(delete_id), ass : JSON.stringify(ass) },
+			dataType: "text",
+			success: function(result) {
+				// Check for success result
+				if (result == "success") {
+					// Reload page
+					get_unit_activities();
+					// Animate success to user
+					$('html, body').animate({scrollTop: $("body").offset().top},200);
+					$('#submitted').hide();
+					$('#submitted').fadeIn(1000);
+					$('#submitted').fadeOut(2000);
+				} else {
+					$("#activity_container").show();
+					$("#load").hide();
+					alert("Something went wrong submitting data. \n Message:" + result);
+				}
+				$('#addcolumn').attr("disabled", false);
+				$('#save').attr("disabled", false);
+				$('#save').html("Save");
+			}
+		});
+	}
+
+
+</script>
+{% endblock %}
+
+{% block css %}
+	<style type="text/css">
+		.form-control {
+			font-size: 13px;
+		}
+
+		.form-horizontal table th {
+			text-align: center;
+		}
+
+		#act_table {
+			display: inline-block;
+			border-collapse: collapse;
+			border: 1px solid #ccc;
+			border-radius:4px;
+		}
+
+		#act_table td, #act_table th {
+			border-bottom: 1px solid #ccc;
+			padding: 3px;
+			font-size: 12px;
+		}
+
+		#act_table th {
+			text-align: center;
+			background-image: linear-gradient(to bottom,#f5f5f5 0,#e8e8e8 100%);
+		}
+
+		#act_table td {
+			text-align: left;
+		}
+	</style>
+{% endblock %}
+
+{% block jumbotron %}
+	<h1>Session Detail</h1>
+	<p class="lead">Enter sessional details for the unit.<br> Use the tabs to change between different forms.</p>
+{% endblock %}
+
+
+{% block content %}
+	{{ include('lg/edit/_tabs.twig') }}
+	<div>
+		<div id='submitted' class='alert alert-success' role='alert' hidden><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Data Submitted</div>
+	</div>
+	<h2>3. Teaching and Learning Activities</h2>
+	<br>
+	<button type="button" class="btn btn-success" onclick="AddCol()" data-toggle='tooltip' title='This will add a new coloumn to the activities table. You can then select the type of activity the column represents' id="addcolumn">Add Column</button>
+	<div style="text-align: center;">
+		<br><br>
+		<div id="activity_container"></div>
+		<div id="load" hidden>
+			<img src="/img/saving.gif">
+		</div>
+		<br>
+		<button type="button" class="btn btn-primary" onclick="Submit()" id="save">Save</button>
+		<br><br>
+	</div>
+{% endblock %}

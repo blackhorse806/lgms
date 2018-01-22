@@ -1,0 +1,77 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+	<script>
+
+	</script>
+{% endblock %}
+
+{% block css %}
+	<style>
+	table {
+		border-collapse: collapse;
+	}
+
+	td, tr, th {
+		border: 1px solid black;
+		padding: 5px;
+	}
+	</style>
+{% endblock %}
+
+{% block content %}
+
+<h1>Statistics</h1>
+
+<h3>{{ session }} - {{ year }}</h3>
+
+<table>
+	<tr><th>DAP</th><th>Stateless</th><th>Scheduled</th><th>Amend</th><th>ReviewReady</th><th>Approved</th><th>Published</th><th>Total</th></tr>
+
+	{% for dap in data %}
+	    <tr>
+			<td>
+				{{ dap.name }}
+			</td>
+			<td>
+				{{ dap.Stateless }}
+			</td>
+			<td>
+				{{ dap.Scheduled }}
+			</td>
+			<td>
+				{{ dap.Amend }}
+			</td>
+			<td>
+				{{ dap.ReviewReady }}
+			</td>
+			<td>
+				{{ dap.Approved }}
+			</td>
+			<td>
+				{{ dap.Published }}
+			</td>
+			<td>
+				{{ dap.Stateless +  dap.Scheduled + dap.Amend + dap.ReviewReady + dap.Approved + dap.Published }}
+			</td>
+		</tr>
+	{% endfor %}
+
+	<tr>
+		<td>
+			Totals
+		</td>
+		{% set total = 0 %}
+		{% for state in totals %}
+		    <td>
+				{{ state }}
+				{% set total = total + state %}
+			</td>
+		{% endfor %}
+		<td>
+			{{ total }}
+		</td>
+	</tr>
+</table>
+
+{% endblock %}

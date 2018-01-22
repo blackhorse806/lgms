@@ -1,0 +1,115 @@
+{% extends "layouts/master.twig" %}
+
+{% block css %}
+    <style>
+		h3 {
+			padding-top: 5px;
+			padding-bottom: 5px;
+		}
+    </style>
+{% endblock %}
+
+{% block jumbotron %}
+    <h1>Admin Home</h1>
+	<p class="lead">Full control of all Learning Guides</p>
+{% endblock %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <h3>Learning Guides</h3>
+            <div class="row">
+                <div class="col-md-4">
+                    <a class="btn btn-default btn-md btn-block" href="{{ urlFor('/lg/list') }}">All<br>Learning Guides</a>
+                </div>
+                <div class="col-md-4">
+					<a class="btn btn-default btn-md btn-block" href="{{ urlFor('/schedule') }}">Schedule a<br>Learning Guide</a>
+                </div>
+                <div class="col-md-4">
+					<!-- <a class="btn btn-default btn-md btn-block" href="unit_search.php">Search</a> -->
+                </div>
+            </div>
+
+            <hr>
+
+            <h3>Staff</h3>
+            <div class="row">
+                <!-- <div class="col-md-4">
+                    <a class="btn btn-default btn-md btn-block" href="add_staff.php">
+                        Add Staff
+                    </a>
+                </div> -->
+                <div class="col-md-4">
+                    <a class="btn btn-default btn-md btn-block" href="{{ urlFor('/edit_user') }}">
+                        Edit<br>Staff
+                    </a>
+                </div>
+            </div>
+
+            <!-- <hr>
+
+            <h3>DAP's</h3>
+            <div class="row">
+                <div class="col-md-4">
+                    <a class="btn btn-default btn-md btn-block" href="add_dap.php">
+                        Add DAP
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a class="btn btn-default btn-md btn-block" href="admin_edit_dap_select.php">
+                        Edit DAP
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a class="btn btn-default btn-md btn-block" href="manage_acting_daps.php">
+                        Manage Acting DAPs
+                    </a>
+                </div>
+            </div> -->
+
+            <hr>
+
+            <h3>Courses</h3>
+            <div class="row">
+                <div class="col-md-4">
+                    <a class="btn btn-default btn-md btn-block" href="add_course.php">
+                        Add Course
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a class="btn btn-default btn-md btn-block" href="edit_course.php">
+                        Edit Course
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a class="btn btn-default btn-md btn-block" href="admin_edit_course_clo.php">
+                        Edit CLO's
+                    </a>
+                </div>
+            </div>
+
+            <hr>
+
+			<h3>Session Dates</h3>
+			<div class="row">
+				<div class="col-md-4">
+					<a class="btn btn-default btn-md btn-block" href="{{ urlFor('/edit_session_dates') }}">
+						Edit<br>Session Dates
+					</a>
+				</div>
+			</div>
+
+			<hr>
+
+            <h3>Statistics</h3>
+            <div class="row">
+                <div class="col-md-4">
+                    <a class="btn btn-default btn-md btn-block" href="{{ urlFor('/statistics') }}">
+                        View<br>Statistics
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+{% endblock %}

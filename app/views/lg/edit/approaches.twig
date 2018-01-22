@@ -1,0 +1,159 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+<script>
+var g_ischange_flag = false;
+var g_num_items = 0;
+
+window.onload = function() {
+	start();
+	$("body").keypress(function(e){
+		g_ischange_flag = true;
+	});
+};
+
+$(window).bind('beforeunload', function(){
+	if (g_ischange_flag) {
+		return 'You have not saved your changes.';
+	}
+});
+
+// Insert data into form
+function InsertData(num, record) {
+	var mode = record.mode;
+	if (mode != null &&  mode.toUpperCase() == "VUWS") {
+		mode = "vUWS";
+		$("#delivery_approach" + (num)).attr("placeholder","No Data: vUWS will not be shown as a learning approach");
+	}
+	$("#delivery_id" + (num)).val(record.id);
+    $("#delivery_mode" + (num)).val(mode);
+    $("#delivery_hours" + (num)).val(record.hours);
+    $("#delivery_approach" + (num)).val(record.approach);
+}
+
+// Returns the html for a new staff form
+function GetItemHTML(num) {
+	var html = "";
+	html += "<div class='form-group' id='item_form" + num + "' hidden>";
+	html += "<div class='panel panel-default'>";
+ 	html += "<div class='panel-body'>";
+	html += "<input class='form-control' readonly='readonly' type='hidden' id='delivery_id" + num  +  "' value='' />";
+	html += "<label>Mode: </label>";
+	html += "<input class='form-control' readonly='readonly' type='text' id='delivery_mode" + num  +  "' value='' />";
+	html += "<label>Hours: </label>";
+	html += "<input class='form-control readonly' readonly='readonly' type='text' id='delivery_hours" + num + "' />";
+	html += "<label>Approach: </label>";
+	html += "<textarea class='form-control' rows='5' id='delivery_approach" + num + "''></textarea>";
+	html += "</div>";
+	html += "</div>";
+	html += "</div>";
+	return html;
+}
+
+// Runs when page is loading, pulls data with ajax
+function start() {
+	var data = null;
+	$.ajax({
+		url: '{{ urlFor('/lg/get/approaches', { "lg_id" : core.lg_id }) }}',
+		method: "GET",
+		dataType: "text",
+		success: function(result) {
+			if (result != null && result != "0 results") {
+				data = JSON.parse(result);
+				if (data != null && data != "0 results") {
+					var items = data.approaches;
+					var intro = data.intro;
+					$("#approaches_intro").val(intro);
+					g_num_items = Object.keys(items).length;
+					CreateForm(items);
+				}
+			}
+		}
+	});
+	return data;
+};
+
+// CreateForms the form with existing records
+function CreateForm(data) {
+	// Loop over each approach
+    for (var i = 0; i < g_num_items; i++) {
+    	// Add form
+    	$("#item_forms").append(GetItemHTML(i+1));
+    	// Add data to form
+    	InsertData(i+1,data[i]);
+    	// Fade the form in
+    	$("#item_form" + (i+1)).show();
+    }
+    // Add tooltip for remove
+    $('[data-toggle="tooltip"]').tooltip();
+}
+
+function Submit() {
+	g_ischange_flag = false;
+	var count = 0;
+	var data = {};
+	var intro = null;
+	var approaches = [];
+	// Extract data from forms
+	for (var i = 0; i < 100; i++) {
+		if ($("#item_form"+i).length > 0) {
+			count++;
+			approaches[count] = {};
+			approaches[count].id = $("#delivery_id"+i).val();
+			approaches[count].approach = $("#delivery_approach"+i).val();
+		}
+	}
+	intro = $("#approaches_intro").val();
+	data.intro = intro;
+	data.approaches= approaches;
+	// Insert data into db
+	var jstr = JSON.stringify(data);
+	$.ajax({
+		url: '{{ urlFor('/lg/put/approaches', { "lg_id" : core.lg_id }) }}',
+		dataType: 'text',
+		data: {data: jstr},
+		type: 'POST',
+		success: function(data){
+			if (data == "success") {
+				$('html, body').animate({scrollTop: $("body").offset().top},200);
+				$('#submitted').hide();
+				$('#submitted').fadeIn(1000);
+				$('#submitted').fadeOut(2000);
+			} else {
+				alert("Error: Could not save unit approaches.\nMessage: " + data);
+			}
+		}
+	});
+}
+</script>
+{% endblock %}
+
+{% block css %}
+{% endblock %}
+
+{% block jumbotron %}
+	<h1>Session Detail</h1>
+	<p class="lead">Enter sessional details for the unit.<br> Use the tabs to change between different forms.</p>
+{% endblock %}
+
+
+{% block content %}
+{{ include('lg/edit/_tabs.twig') }}
+<div id='submitted' hidden><div class="alert alert-success" role="alert">Data Saved <span class="glyphicon glyphicon-ok" aria-hidden="true"></span></div></div>
+<h3>2.2 Approach to Learning</h3>
+<span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span> This section should contain the following
+<ul>
+	<li>Information on various types of learning activities e.g. lectures, practicals, workshops, industry visits etc. highlighting the activity of major focus</li>
+	<li>Information on how learning activities support the attainment of learning outcomes</li>
+	<li>Information on approach to Blended Learning e.g. how online and face-to-face activities integrate and support each other.</li>
+</ul>
+<br>
+<div>
+	<form role="form" id="staffform" class="form-horizontal">
+		<textarea placeholder="No Data: Nothing will be shown in learning Guide" class="form-control" id="approaches_intro" rows="10"></textarea><br>
+		<div id="item_forms"></div>
+		<button type="button" class="btn btn-primary" onclick="Submit()">Save</button>
+	</form>
+</div>
+<br><br>
+{% endblock %}

@@ -1,0 +1,251 @@
+{% extends "layouts/master.twig" %}
+
+{% block css %}
+
+{% endblock %}
+
+{% block js %}
+<script type="text/javascript">
+	var g_uc_email = "{{ user.email }}";
+	var g_uc_name = "{{ user.name }}";
+	var g_ischange_flag = false;
+	// Find how many records there are in the JSON data
+	var g_totalStaff = 0;
+	var g_deleted_id = [];
+
+
+	window.onload = function() {
+		start();
+		$("body").keypress(function(e){
+			g_ischange_flag = true;
+		});
+	};
+
+	$(window).bind('beforeunload', function(){
+		if (g_ischange_flag) {
+			return 'You have not saved your changes.';
+		}
+	});
+
+	// Resets forms and reloads data
+	function Reset() {
+		g_totalStaff = 0;
+		g_deleted_id = [];
+		$("#staff_forms").html("");
+		start();
+	}
+
+	// Adds new staff to table
+	function AddStaff() {
+		// Increment total number of staff
+		g_totalStaff++;
+		// Add a new staff html to page
+	    $("#staff_forms").append(GetStaffHTML(g_totalStaff));
+	    $("#staff_form" + g_totalStaff).fadeIn();
+	    // Add tool tip for remove button
+	    $('[data-toggle="tooltip"]').tooltip();
+	}
+
+	// Deletes a staff from table
+	function RemoveStaff(staffNum) {
+		g_ischange_flag = true;
+		var id = $("#staff_id" + staffNum).val();
+		if (id != "") {
+			g_deleted_id.push(id);
+		}
+		$("#staff_form" + staffNum).animate({height: "0px"}).queue(function(){$(this).remove();});
+	}
+
+	function UseUCEmail(num) {
+		$("#staff_email" + num).val(g_uc_email);
+	}
+
+	function UseUCName(num) {
+		$("#staff_name" + num).val(g_uc_name);
+	}
+
+	// Returns the html for a new staff form
+	function GetStaffHTML(num) {
+		var html = "";
+		html += "<div class='form-group staff-item' id='staff_form" + num + "' hidden>";
+		html += "<div class='panel panel-default'>";
+	 	html += "<div class='panel-body'>";
+
+		html += "<span class='glyphicon glyphicon-remove pull-right' onclick='RemoveStaff(" + num + ")' data-toggle='tooltip' title='Remove'></span>";
+		html += "<input class='form-control' type='hidden' id='staff_id" + num  +  "' value=''/>";
+		html += "<label>Name: </label>";
+		html += "<table><tr><td width='100%'>";
+		html += "<input class='form-control' type='text' id='staff_name" + num  +  "' value='' maxlength='255' />";
+		html += "</td><td>";
+		html += "<button type='button' onclick='UseUCName(" + num  + ")' class='btn btn-success'>Users Name</button>";
+		html += "</td></tr></table>";
+
+		html += "<label>Type</label>";
+		html += "<select class='form-control' id='staff_type" + num + "'>";
+		html += "<option></option>";
+		html += "<option>Unit Coordinator</option>";
+		html += "<option>Teaching Team</option>";
+		html += "<option>Administrative Support</option>";
+		html += "</select>";
+
+		html += "<label>Email: </label>";
+		html += "<table><tr><td width='100%'>";
+		html += "<input class='form-control email' type='text' id='staff_email" + num + "' maxlength='255' />";
+		html += "</td><td>";
+		html += "<button type='button' onclick='UseUCEmail(" + num  + ")' class='btn btn-success'>Users Email</button>";
+		html += "</td></tr></table>";
+
+		html += "<label>Phone: </label>";
+		html += "<input class='form-control' type='text' id='staff_phone" + num + "' maxlength='255' />";
+
+		html += "<label>Location: </label>";
+		html += "<input class='form-control' type='text' id='staff_location" + num + "' maxlength='255' />";
+
+		html += "<label>Consultation: </label>";
+		html += "<textarea placeholder='No Data: Nothing will be shown in learning Guide' class='form-control' rows='5' id='staff_consultation" + num + "''></textarea>";
+
+		html += "</div>";
+		html += "</div>";
+		html += "</div>";
+
+		return html;
+	}
+
+	// Runs when page is loading, pulls data with ajax
+	function start() {
+		get_data(function(result) {
+			if (result != null && result != "0 results") {
+				// Set the number of staff that exist
+				g_totalStaff = Object.keys(result).length;
+				// Create forms and add data
+				CreateForms(result);
+			}
+		});
+	};
+
+	// Populates the form with existing records
+	function CreateForms(data) {
+		// Loop over each staff member
+	    for (var i = 0; i < g_totalStaff; i++) {
+	    	// Add html for each staff form
+	    	$("#staff_forms").append(GetStaffHTML(i+1));
+	    	// Add data to each html form
+	    	PopulateStaffForm(i+1,data[i]);
+	    	// Fade the form in
+	    	$("#staff_form" + (i+1)).show();
+	    }
+	    // Add tooltip for remove
+	    $('[data-toggle="tooltip"]').tooltip();
+	}
+
+	// Puts the data in a staff form record
+	function PopulateStaffForm(num, record) {
+		$("#staff_id" + (num)).val(record.id);
+	    $("#staff_name" + (num)).val(record.name);
+	    $("#staff_type" + (num)).val(record.type);
+	    $("#staff_email" + (num)).val(record.email);
+	    $("#staff_phone" + (num)).val(record.phone);
+	    $("#staff_location" + (num)).val(record.location);
+	    $("#staff_consultation" + (num)).val(record.consultation);
+	}
+
+	// Saves form data to db
+	function Submit() {
+		$("#button_save").addClass("disabled");
+		$("#button_save").attr("onclick", "");
+		$("#button_add").addClass("disabled");
+		$("#button_add").attr("onclick", "");
+		g_ischange_flag = false;
+		var count = 0;
+		var json = [];
+		// Extract data from form
+		for (var i = 0; i < 100; i++) {
+			if ($("#staff_form"+i).length > 0) {
+				json[count] = {};
+				json[count].id = $("#staff_id"+i).val();
+				json[count].name = $("#staff_name"+i).val();
+				json[count].email = $("#staff_email"+i).val();
+				json[count].type = $("#staff_type"+i).val();
+				json[count].phone = $("#staff_phone"+i).val();
+				json[count].location = $("#staff_location"+i).val();
+				json[count].consultation = $("#staff_consultation"+i).val();
+				count++;
+			}
+		}
+		// Save data to db
+		json_str = JSON.stringify(json);
+		$.ajax({
+			url: "{{ urlFor('/lg/put/staff', { "lg_id" : core.lg_id }) }}",
+			dataType: 'text',
+			data: {json: json_str, delete : JSON.stringify(g_deleted_id)},
+			type: 'POST',
+			success: function(data){
+				console.log(data);
+				if (data=="success") {
+					$('html, body').animate({scrollTop: $("body").offset().top},200);
+					$('#submitted').hide();
+					$('#submitted').fadeIn(1000);
+					$('#submitted').fadeOut(2000);
+					Reset();
+				} else {
+					alert("Error: Could not save staff.\nMessage: " + data);
+				}
+				$("#button_save").removeClass("disabled");
+				$("#button_save").attr("onclick", "Submit()");
+				$("#button_add").removeClass("disabled");
+				$("#button_add").attr("onclick", "AddStaff()");
+			}
+		});
+	}
+
+	// Converts email uws.edu.au to westernsydney.edu.au on focusout
+	$(document).on("focusout", ".email", function() {
+		var str = $(this).val();
+		$(this).val(str.replace("uws.edu.au", "westernsydney.edu.au"));
+	});
+
+	// Get a json object from a database table
+	function get_data(exefunc) {
+		var data = null;
+		$.ajax({
+			url: "{{ urlFor('/lg/get/staff', { "lg_id" : core.lg_id }) }}",
+			method: "GET",
+			dataType: "text",
+			success: function(result) {
+				if (result != null && result != "0 results") {
+					data = JSON.parse(result);
+					exefunc(data);
+				}
+			}
+		});
+		return data;
+	}
+
+</script>
+{% endblock %}
+
+{% block jumbotron %}
+<h1>Session Detail</h1>
+<p class="lead">Enter sessional details for the unit.<br> Use the tabs to change between different forms.</p>
+{% endblock %}
+
+{% block content %}
+{{ include('lg/edit/_tabs.twig') }}
+<div id='submitted' hidden><div class="alert alert-success" role="alert">Data Saved <span class="glyphicon glyphicon-ok" aria-hidden="true"></span></div></div>
+<h3>Staff Details</h3>
+<span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span> These staff details are displayed on the second page of the Learning Guide<br>
+<span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span> The staff required here are<br>
+<ul>
+	<li>The Unit Coordinator</li>
+	<li>Key contacts (if tutor/s not known, a school administrative contact, school librarian etc. to be listed)</li>
+</ul>
+<br>
+<div>
+	<form role="form" id="staffform" class="form-horizontal">
+		<div id="staff_forms"></div>
+		<button type="button" class="btn btn-success" id="button_add" onclick="AddStaff()">Add Staff</button><br><br>
+		<button type="button" class="btn btn-primary" id="button_save" onclick="Submit()">Save</button><br><br>
+	</form>
+</div>
+
+{% endblock %}

@@ -1,0 +1,426 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+    <script>
+		var sendingEmail = false;
+
+        window.onload = function() {
+			{% if core.state != 'Scheduled' and core.state != 'Amend' %}
+				$("#review_button").addClass("disabled");
+	            $("#review_button").attr("data-target", "");
+			{% endif %}
+        }
+
+
+		function publish() {
+			$("#publish_yes").addClass("disabled");
+			$('#publish_yes').attr("disabled", true);
+			$("#publish_yes").html("Publishing now <img src='/img/saving.gif'>");
+
+			$.ajax({
+				url: "{{ urlFor('/lg/email/publish', {'lg_id':core.lg_id}) }}",
+				method: "POST",
+				dataType: "text",
+				success: function(result) {
+					if (result.trim() == "success") {
+						$("#publish_yes").html("Complete");
+						alert("Email sent!");
+						window.location = "{{ urlFor('/lg', {'lg_id':core.lg_id}) }}";
+					} else {
+						alert("Email Error!\n" + result);
+						$("#publish_yes").html("Failed");
+						window.location = "{{ urlFor('/lg', {'lg_id':core.lg_id}) }}";
+					}
+				}
+			});
+		}
+
+
+		function send_modification_request() {
+			if (sendingEmail) {
+				return;
+			}
+			sendingEmail = true;
+			$("#modification_button").html("Sending Email...");
+			$("#modification_button").addClass("disabled");
+			$.ajax({
+				url: "{{ urlFor('/lg/email/request_modification', {'lg_id':core.lg_id}) }}",
+				method: "POST",
+				data: {message: $("#variation").val()},
+				dataType: "text",
+				success: function(result) {
+					if (result.trim() == "success") {
+						alert("Email sent!");
+					} else {
+						alert("Email Error!\n" + result);
+					}
+					$("#modification_button").removeClass("disabled");
+					$("#modification_button").html("Email");
+					$("#ModalVariation").modal('hide');
+					sendingEmail = false;
+				}
+			});
+		}
+
+		function submit_for_review() {
+            $(".btn").addClass("disabled");
+            $("#review_button").html('<img src="/img/saving.gif"> Submitting...');
+			$.ajax({
+				url: "{{ urlFor('/lg/email/submit_for_review', {'lg_id':core.lg_id}) }}",
+				method: "POST",
+				dataType: "text",
+				success: function(result) {
+					if (result.trim() == "success") {
+						alert("Learning Guide submitted for review!");
+					} else {
+						alert("Failed to submit!\n" + result);
+					}
+                    location.href = "{{ urlFor('/lg', {'lg_id':core.lg_id}) }}";
+				}
+			});
+		}
+
+        function generate_preview() {
+            $("#preview_button").html('<img src="/img/saving.gif"> Generating...');
+			$("#preview_button").attr("disabled", true);
+            $.ajax({
+                url: "{{ urlFor('/lg/generate', {'lg_id' : core.lg_id}) }}",
+                method: "GET",
+                dataType: "text",
+                success: function(result) {
+                    if (result.trim() == "success") {
+                        $("#preview_button").html('Preview<br>Learning Guide');
+                        location.href = "{{ urlFor('/lg/view_pdf', {'lg_id' : core.lg_id}) }}?n=" + new Date().getTime();
+                    } else {
+                        $("#preview_button").html('Preview<br>Learning Guide')
+						$("#preview_button").attr("disabled", false);
+                        alert("Generation Error!\n" + result);
+                    }
+                }
+            });
+        }
+
+		{% if core.state == 'Scheduled' and not core.lg_merged %}
+		function old_import() {
+			var message = "Are you sure you want to import the session details from the previous session?\n\nAnything you have already entered will be deleted!";
+			if (confirm(message)) {
+				$(".btn").addClass("disabled");
+				$("#old_import").html("Importing...");
+				location.href='{{ urlFor('/lg/merge_old', {"lg_id":core.lg_id}) }}';
+			}
+		}
+		{% endif %}
+
+    </script>
+{% endblock %}
+
+{% block css %}
+<style>
+	.menu_button {
+		padding: 10px;
+		width: 33%;
+	}
+</style>
+{% endblock %}
+
+
+{% block jumbotron %}
+    <h1>Learning Guide Dashboard</h1>
+    <p class="lead">Information, data entry and preview all in one place</p>
+{% endblock %}
+
+{% block content %}
+    {{ include('lg/_unit_details.twig') }}
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <br>
+            <table style="width: 100%;">
+                <tr>
+                    <td class="menu_button">
+						{% set edit = 0 %}
+						{% if core.state == "Scheduled" or core.state == "Amend" %}{% set edit = 1 %}{% endif %}
+						{% if core.state == "ReviewReady" and user.dap %}{% set edit = 1 %}{% endif %}
+						{% if core.state == "ReviewReady" and user.acting_dap %}{% set edit = 1 %}{% endif %}
+						{% if user.admin or user.developer %}{% set edit = 1 %}{% endif %}
+						{% if edit == 1 %}
+						<button id="edit_button" type="button" class="btn btn-default btn-md btn-block" onclick="location.href='{{ urlFor('/lg/edit/staff', {"lg_id":core.lg_id}) }}'">
+							&nbsp;&nbsp;Edit<span class="glyphicon glyphicon-pencil pull-right" aria-hidden="true"></span><br>Unit Details
+						</button>
+						{% else %}
+						<button id="edit_button" type="button" class="btn btn-default btn-md btn-block disabled">
+							&nbsp;&nbsp;Edit<span class="glyphicon glyphicon-pencil pull-right" aria-hidden="true"></span><br>Unit Details
+						</button>
+						{% endif %}
+                    </td>
+                    <td class="menu_button">
+                        <button id="preview_button" type="button" onclick="generate_preview()" class="btn btn-default btn-md btn-block">
+                            Preview<br>Learning Guide
+                        </button>
+                    </td>
+                    <td class="menu_button">
+						{% if core.state == "Scheduled" or core.state == "Amend" %}
+                        <button id="review_button" type="button" class="btn btn-default btn-md btn-block" data-toggle="modal" data-target="#ModalSubmit">
+                            Submit<br>For Review
+                        </button>
+						{% else %}
+						<button id="review_button" type="button" class="btn btn-default btn-md btn-block disabled">
+                            Submit<br>For Review
+                        </button>
+						{% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="menu_button">
+                        <button type="button" class="btn btn-default btn-md btn-block" onclick="location.href='{{ urlFor('/lg/details', {"lg_id":core.lg_id}) }}'">
+                            View<br>Unit Details
+                        </button>
+                    </td>
+                    <td class="menu_button"></td>
+                    <td class="menu_button">
+                        <button type="button" class="btn btn-default btn-md btn-block" data-toggle="modal" data-target="#ModalVariation">
+                            Request<br>Data Modification
+                        </button>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="menu_button">
+						{% if core.state == 'Scheduled' and not core.lg_merged %}
+						<button id="old_import" type="button" class="btn btn-default btn-md btn-block" onclick="old_import()">
+							Import Unit Details<br>from Previous LG
+						</button>
+						{% endif %}
+					</td>
+                    <td class="menu_button"></td>
+                    <td class="menu_button"></td>
+                </tr>
+				<tr>
+                    <td class="menu_button"></td>
+                    <td class="menu_button"></td>
+                    <td class="menu_button"></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    {% if user.dap or user.admin or user.developer or user.acting_dap %}
+        <div class="panel panel-default">
+            <div class="panel-heading">DAP</div>
+            <div class="panel-body">
+                <table style="width: 100%;">
+                    <tr>
+                        <td class="menu_button">
+							{% if core.state == "Approved" %}
+                            <button id="publish_button" class="btn btn-default btn-md btn-block"  data-toggle="modal" data-target="#ModalPublish">
+                                Publish<br>Learning Guide
+                            </button>
+							{% else %}
+							<button id="publish_button" class="btn btn-default btn-md btn-block disabled">
+                                Publish<br>Learning Guide
+                            </button>
+							{% endif %}
+                        </td>
+                        <td class="menu_button">
+							{% if core.state != "Published" %}
+                            <button id="review_button" type="button" class="btn btn-default btn-md btn-block" onclick="location.href='{{ urlFor('/lg/review', { "lg_id":core.lg_id }) }}'">
+                                Review<br>Learning Guide
+                            </button>
+							{% else %}
+							<button id="review_button" type="button" class="btn btn-default btn-md btn-block disabled">
+								Review<br>Learning Guide
+							</button>
+							{% endif %}
+                        </td>
+                        <td class="menu_button">
+                            <button type="button" class="btn btn-default btn-md btn-block" data-toggle="modal" data-target="#ModalDAP">
+                                Change<br>DAP
+                            </button>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Select DAP Modal -->
+        <div id="ModalDAP" class="modal fade" role="dialog">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title">Change DAP</h4>
+                    </div>
+                    <div class="modal-body">
+                        <form class="form" action="{{ urlFor('/lg/set/dap', {'lg_id':core.lg_id}) }}" method="post">
+							<select id="dap" name="dap">
+							{% for item in users %}
+							    <option value="{{ item.id }}">{{ item.name }}</option>
+							{% endfor %}
+							</select>
+                            <br><br>
+                            <button type="submit" name="submit" value="Submit">Submit</button>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Publish Modal -->
+        <div id="ModalPublish" class="modal fade" role="dialog">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        <h4 class="modal-title">Publish Learning Guide</h4>
+                    </div>
+                    <div class="modal-body">
+                        <p>
+							Are you sure you want to publish the Learning Guide.
+							This will email it to other university services.
+							No changes can be made after this.
+						</p>
+                        <br>
+                        <div id="publish_yes" class="btn btn-default" onclick="publish()">Yes</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if user.admin or user.developer %}
+        <div class="panel panel-default">
+            <div class="panel-heading">Admin</div>
+            <div class="panel-body">
+                <table style="width: 100%;">
+                    <tr>
+                        <td class="menu_button" style="">
+                            <button id="edit_button" type="button" class="btn btn-default btn-md btn-block" data-toggle="modal" data-target="#ModalState">
+                                Change<br>State
+                            </button>
+                        </td>
+                        <td class="menu_button">
+                            <button id="edit_button" type="button" class="btn btn-default btn-md btn-block" data-toggle="modal" data-target="#ModalUC">
+                                Change<br>Unit Coordinator
+                            </button>
+                        </td>
+						<td class="menu_button">
+                            <a class="btn btn-default btn-md btn-block" onclick="if(confirm('Are you sure')){window.location = '{{ urlFor('/lg/delete', {'lg_id':core.lg_id}) }}';}">
+                                Delete<br>Learning Guide
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="menu_button"></td>
+                        <td class="menu_button"></td>
+                        <td class="menu_button"></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change State -->
+    <div id="ModalState" class="modal fade" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Change State</h4>
+                </div>
+                <div class="modal-body">
+                    <form class="form" action="{{ urlFor('/lg/set/state', {'lg_id':core.lg_id}) }}" method="post">
+                        <select name="state">
+                            <option>Stateless</option>
+                            <option>Scheduled</option>
+                            <option>Amend</option>
+                            <option>ReviewReady</option>
+                            <option>Approved</option>
+                            <option>Published</option>
+                        </select>
+                        <br><br>
+                        <button type="submit" name="submit" value="Submit">Submit</button>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Select UC -->
+    <div id="ModalUC" class="modal fade" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Change Unit Coordinator</h4>
+                </div>
+                <div class="modal-body">
+                    <form class="form" action="{{ urlFor('/lg/set/uc', {'lg_id':core.lg_id}) }}" method="post">
+						<select id="uc" name="uc">
+						{% for item in users %}
+							<option value="{{ item.id }}">{{ item.name }}</option>
+						{% endfor %}
+						</select>
+                        <br><br>
+                        <button type="submit" name="submit" value="Submit">Submit</button>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+	{% endif %}
+
+    <!-- Variation Modal -->
+    <div id="ModalVariation" class="modal fade" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Request a Data Modification</h4>
+                </div>
+                <div class="modal-body">
+                    Please describe the data modification that you require below and it will be emailed to admin for processing.
+                    <form class="form">
+                        <textarea class="form-control" id="variation" cols="20" rows="10"></textarea><br>
+                    </form>
+					<div id="modification_button" class="btn btn-default" type="button" onclick="send_modification_request()">Email</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submit Modal -->
+    <div id="ModalSubmit" class="modal fade" role="dialog">
+        <div class="modal-dialog modal-sl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Submit for Review</h4>
+                </div>
+                <div class="modal-body">
+                    <p>After submitting you will not be able to change any details about your unit unless your learning guide is unapproved.</p>
+                    <p>Are you sure you want to submit?</p><br>
+                    <button type="button" class="btn btn-default" data-dismiss="modal" id="submit_review" onclick="submit_for_review()">Yes</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">No</button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}

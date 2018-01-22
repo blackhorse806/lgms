@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>LGMS</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=9" />
+
+	<script src="/js/jquery.min.js"></script>
+	<script src="/js/bootstrap.min.js"></script>
+	<script type="text/javascript">
+		$.ajaxSetup({ cache: false });
+	</script>
+    <script>if ( ! window.console ) console = { log: function(){} };</script>
+	{% block js %}{% endblock %}
+
+	<link rel="stylesheet" href="/css/starter-template.css">
+	<link rel="stylesheet" href="/css/data_table.css">
+	<link rel="stylesheet" href="/css/bootstrap.min.css">
+	<link rel="stylesheet" href="/css/bootstrap-theme.min.css">
+	<style>
+		body {
+			padding-top: 50px;
+			font-family: Calibri;
+		}
+
+		.starter-template {
+			padding: 40px 15px;
+			text-align: center;
+		}
+
+		#submitted {
+			position: fixed;
+			top: 75px;
+			right: 50px;
+			width: 200px;
+		}
+	</style>
+	{% block css %}{% endblock %}
+
+</head>
+<body>
+	<nav class='navbar navbar-inverse navbar-fixed-top'>
+	    <div class='container'>
+	        <div class='navbar-header'>
+	            <button type='button' class='navbar-toggle collapsed' data-toggle='collapse' data-target='#navbar' aria-expanded='false' aria-controls='navbar'>
+	                <span class='sr-only'>Toggle navigation</span>
+	                <span class='icon-bar'></span>
+	                <span class='icon-bar'></span>
+	                <span class='icon-bar'></span>
+	            </button>
+	            <a class='navbar-brand'><span class='glyphicon glyphicon-duplicate'></span> LGMS</a>
+	        </div>
+	        <div id='navbar' class='collapse navbar-collapse'>
+				{% if not login %}
+					<ul class="nav navbar-nav">
+						{% for item in user.navigation.paths %}
+							<li class="{% if item == user.navigation.paths|last %}active{% endif %}">
+								<a href="{{ item[1] }}">{{ item[0] }}</a>
+							</li>
+						{% endfor %}
+					</ul>
+					<ul class="nav navbar-nav navbar-right pull-rigth">
+						<li>
+							<a href="{{ urlFor('/logout') }}"><span class="glyphicon glyphicon-log-out" aria-hidden="true"></span>&nbsp;&nbsp;Logout</a>
+						</li>
+					</ul>
+				{% endif %}
+	        </div>
+	    </div>
+	</nav>
+
+	{% block header %}{% endblock %}
+
+	<div class="container">
+		<div class="starter-template">
+
+			{% block jumbotron %}{% endblock %}
+
+		</div>
+
+		{% block content %}{% endblock %}
+
+	</div>
+
+	{% block footer %}{% endblock %}
+
+</body>
+</html>

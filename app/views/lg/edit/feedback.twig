@@ -1,0 +1,203 @@
+{% extends "layouts/master.twig" %}
+
+{% block css %}{% endblock %}
+
+{% block js %}
+    <script type="text/javascript">
+        var g_ischange_flag = false;
+		var g_total_items = 0;
+        var g_deleted = [];
+
+        window.onload = function() {
+            start();
+            $("body").keypress(function(e) {
+                g_ischange_flag = true;
+            });
+        };
+
+        $(window).bind('beforeunload', function() {
+            if (g_ischange_flag) {
+                return 'You have not saved your changes.';
+            }
+        });
+
+        // Reset forms and reload data
+        function Reset() {
+            g_total_items = 0;
+            g_deleted_id = [];
+            $("#item_forms").html("");
+            start();
+        }
+
+        // Adds new item to form
+        function AddItemHTML() {
+            g_ischange_flag = true;
+            // Increment total number of items
+            g_total_items++;
+            // Add a new item html to page
+            $("#item_forms").append(GetItemHTML(g_total_items));
+            $("#item_form" + g_total_items).fadeIn();
+            // Add tool tip for remove button
+            $('[data-toggle="tooltip"]').tooltip();
+        }
+
+        // Deletes an item
+        function RemoveText(num) {
+            g_ischange_flag = true;
+            var id = $("#feedback_id" + num).val();
+            if (id != "") {
+                g_deleted.push(id);
+            }
+            $("#item_form" + num).animate({height: "0px"}).queue(function() {
+                $(this).remove();
+            });
+        }
+
+        // Puts the data in a form
+        function InsertData(num, record) {
+            $("#feedback_id" + (num)).val(record.id);
+            $("#feedback_item" + (num)).val(record.feedback_item);
+        }
+
+        // Returns the html for a new item form
+        function GetItemHTML(num) {
+            var html = "";
+            html += "<div style='padding:0px;'class='panel-body' id='item_form" + num + "'>";
+            html += "<span style='padding:10px;' class='glyphicon glyphicon-remove pull-right' onclick='RemoveText(" + num + ")' data-toggle='tooltip' title='Remove'></span>";
+            html += "<input class='form-control' type='hidden' id='feedback_id" + num + "' value='' />";
+            html += "<input class='form-control' type='text' id='feedback_item" + num + "' value='' style='width:95%;' />";
+            html += "</div>";
+            return html;
+        }
+
+        // Runs when page is loading, pulls data with ajax
+        function start() {
+            get_data(function(result) {
+                if (result != null) {
+                    g_total_items = result.length;
+                    CreateForms(result);
+                }
+            });
+        };
+
+        // Populates the form with existing records
+        function CreateForms(data) {
+            // Loop over each item
+            for (var i = 0; i < g_total_items; i++) {
+                // Add html to page
+                $("#item_forms").append(GetItemHTML(i + 1));
+                // Add data to each html form
+                InsertData(i + 1, data[i]);
+                // Fade the form in
+                $("#item_form" + (i + 1)).show();
+            }
+            // Add tooltip for remove
+            $('[data-toggle="tooltip"]').tooltip();
+        }
+
+        function Submit() {
+            // Lock buttons
+            $("#button_save").addClass("disabled");
+            $("#button_save").attr("onclick", "");
+            $("#button_add").addClass("disabled");
+            $("#button_add").attr("onclick", "");
+            // Reset is changed flag
+            g_ischange_flag = false;
+            // Variables to store feedback items
+            var count = 0;
+            var json = [];
+            // Iterate over all possible items
+            for (var i = 0; i < 100; i++) {
+                if ($("#item_form" + i).length > 0) {
+                    if ($("#feedback_item" + i).val() == "") {
+                        RemoveText(i);
+                    } else {
+                        json[count] = {}
+                        json[count].id = $("#feedback_id" + i).val();
+                        json[count].feedback_item = $("#feedback_item" + i).val();
+                        count++;
+                    }
+                }
+            }
+            // Send data to database
+            var jstr = JSON.stringify(json);
+            $.ajax({
+                url: "{{ urlFor('/lg/put/feedback', { "lg_id" : core.lg_id }) }}",
+                dataType: 'text',
+                data: {
+                    json: jstr,
+                    delete: JSON.stringify(g_deleted)
+                },
+                type: 'POST',
+                success: function(data) {
+                    if (data == "success") {
+                        Reset();
+                        $('html, body').animate({
+                            scrollTop: $("body").offset().top
+                        }, 200);
+                        $('#submitted').hide();
+                        $('#submitted').fadeIn(1000);
+                        $('#submitted').fadeOut(2000);
+                    } else {
+                        alert("Error: Could not save feedback.\nMessage: " + data);
+                    }
+                    // Enable buttons
+                    $("#button_save").removeClass("disabled");
+                    $("#button_save").attr("onclick", "Submit()");
+                    $("#button_add").removeClass("disabled");
+                    $("#button_add").attr("onclick", "AddItemHTML()");
+                }
+            });
+        }
+
+        // Get a json object from a database table
+        function get_data(exefunc) {
+            $.ajax({
+                url: "{{ urlFor('/lg/get/feedback', { "lg_id" : core.lg_id }) }}",
+                method: "GET",
+                dataType: "text",
+                success: function(result) {
+                    if (result != null) {
+                        data = JSON.parse(result);
+                        exefunc(data);
+                    }
+                }
+            });
+        }
+    </script>
+{% endblock %}
+
+{% block jumbotron %}
+    <h1>Session Detail</h1>
+    <p class="lead">Enter sessional details for the unit.<br>
+        Use the tabs to change between different forms.</p>
+{% endblock %}
+
+{% block content %}
+    {{ include('lg/edit/_tabs.twig') }}
+    <div id='submitted' hidden>
+        <div class="alert alert-success" role="alert">Data Saved
+            <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
+        </div>
+    </div>
+    <div>
+        <h3>1.3 Changes to Unit as a Result of Past Student Feedback</h3>
+        <p>
+            <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+            This section should contain recent actions to improve this unit (e.g. student feedback, review process etc.)
+		</p>
+        <p>
+			Student feedback plays a vital role in improving the quality and educational effectiveness of Western Sydney University units and in ensuring academic staff keep in touch with student needs. You are welcome to provide feedback that is related to
+            the teaching of this unit. At the end of the semester you will be given the opportunity to complete a Student Feedback on Unit (SFU) questionnaire to assess the unit. If requested by your unit coordinator, you may also have the opportunity to
+            complete a Student Feedback on Teaching (SFT) questionnaire to provide feedback for individual teaching staff.
+		</p>
+        <p>
+			As a result of student feedback, the following changes and improvements have recently been made:
+		</p>
+        <form role="form" id="staffform" class="form-horizontal">
+            <div class='panel panel-default' id="item_forms"></div>
+            <button type="button" class="btn btn-success" onclick="AddItemHTML()" id="button_add">Add Item</button><br><br>
+            <button type="button" class="btn btn-primary" onclick="Submit()" id="button_save">Save</button>
+        </form>
+    </div>
+{% endblock %}

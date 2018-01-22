@@ -1,0 +1,320 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+<script src="/js/nicEdit.js"></script>
+<script src="/js/htmlstrip.js"></script>
+<script>
+	var g_ischange_flag = false;
+
+	window.onload = function() {
+		start();
+		$("body").keypress(function(e){
+			g_ischange_flag = true;
+		});
+	};
+
+	$(window).bind('beforeunload', function(){
+		if (g_ischange_flag) {
+			return 'You have not saved your changes.';
+		}
+	});
+
+	var g_total_ass = 0;
+
+	// Runs when page is loading, pulls data with ajax
+	function start() {
+		$.ajax({
+			url: "{{ urlFor('/lg/get/assessments',{'lg_id':core.lg_id}) }}",
+			method: "GET",
+			dataType: "text",
+			success: function(result) {
+				if (result != null && result != "0 results") {
+					data = JSON.parse(result);
+					if (data != null && data != "0 results") {
+						g_total_ass = data.length;
+						createForms(data);
+					}
+				}
+			}
+		});
+	}
+
+	// Puts the data in a assessment form record
+	function insertData(num, record) {
+		$("#ass_id" + (num)).val(record.id);
+		$("#ass_name" + (num)).val(record.name);
+		$("#ass_weight" + (num)).val(record.weight);
+		$("#ass_length" + (num)).val(record.length);
+		$("#ass_mode" + (num)).val(record.mode);
+		$("#ass_due_date" + (num)).val(record.due_date);
+		$("#ass_submission" + (num)).val(record.submission);
+		$("#ass_collaboration" + (num)).val(record.collaboration);
+		$("#ass_instructions" + (num)).val(htmlstrip(record.instructions));
+		$("#ass_format" + (num)).val(record.format);
+		$("#ass_resources" + (num)).val(record.resources);
+		$("#ass_exemplar" + (num)).val(htmlstrip(record.exemplar_text));
+		$("#ass_include_exemplar" + (num)).val(record.exemplar);
+		if (record.threshold == "0") {
+			$("#ass_threshold_detail" + (num)).hide();
+			$("#ass_threshold_label" + (num)).hide();
+		} else {
+			$("#ass_threshold_detail" + (num)).val(record.threshold_text);
+		}
+	}
+
+	// Expands or hides assessment details
+	function showAss(num) {
+		if ($("#details"+num).is(':hidden')) {
+			$("#expand"+num).removeClass("glyphicon-plus");
+			$("#expand"+num).addClass("glyphicon-minus");
+			$("#details"+num).fadeIn();
+		} else {
+			$("#expand"+num).removeClass("glyphicon-minus");
+			$("#expand"+num).addClass("glyphicon-plus");
+			$("#details"+num).hide();
+		}
+	}
+
+	// Toggle examplar
+	function EnableExemplar(num) {
+		g_ischange_flag = true;
+		// Button needs to stay, but change text to remove exemplar
+		if ($("#exeplarbtn" + (num)).html() == "Remove Exemplar") {
+			$("#exeplarbtn" + (num)).html("Add Exemplar");
+			$("#exeplarbtn" + (num)).removeClass("btn-warning");
+			$("#exeplarbtn" + (num)).addClass("btn-success");
+			$("#exemplar" + (num)).hide();
+			$("#ass_include_exemplar" + (num)).val("0");
+		} else {
+			$("#exeplarbtn" + (num)).html("Remove Exemplar");
+			$("#exeplarbtn" + (num)).removeClass("btn-success");
+			$("#exeplarbtn" + (num)).addClass("btn-warning");
+			$("#exemplar" + (num)).show();
+			$("#ass_include_exemplar" + (num)).val("1");
+		}
+	}
+
+	// Returns the html for a new assessment form
+	function getAssHTML(num) {
+		var html = "";
+		html += "<div class='form-group' id='item_form" + num + "' hidden style='margin: 0px;'>";
+		html += "<div class='panel panel-default'>";
+	 	html += "<div class='panel-body'>";
+	 	html += ""
+		html += "<span id='expand" + num  +  "' class='glyphicon glyphicon-plus pull-right' onclick='showAss(" + num + ")' data-toggle='tooltip' title='Expand'></span>";
+
+		html += "<input class='form-control' readonly='readonly' type='hidden' id='ass_id" + num  +  "' value='' />";
+		html += "<input class='form-control alert-info' style='width: 95%' readonly='readonly' type='text' id='ass_name" + num  +  "' value='' onclick='showAss(" + num + ")'/>";
+
+		html += "<div id='details" + num + "' width='100%'' >";
+		html += "<label>Weight: </label>";
+		html += "<input class='form-control readonly' readonly='readonly' type='text' id='ass_weight" + num + "' />";
+
+		html += "<label>Length: </label>";
+		html += "<input class='form-control readonly' readonly='readonly' type='text' id='ass_length" + num + "' />";
+
+		html += "<label>Due Date: </label>";
+		html += "<input class='form-control' maxlength='254' type='text' id='ass_due_date" + num  +  "' value='' />";
+
+		html += "<label>Collaboration: </label>";
+		html += "<select class='form-control' id='ass_collaboration" + num + "'>";
+		html += "<option></option>";
+		html += "<option>Individual</option>";
+		html += "<option>Group</option>";
+		html += "<option>Both (Individual & Group)</option>";
+		html += "</select>";
+
+		html += "<label>Mode: </label>";
+		html += "<select class='form-control' id='ass_mode" + num + "'>";
+		html += "<option></option>";
+		html += "<option>Annotated Bibliography</option>";
+		html += "<option>Applied Project</option>";
+		html += "<option>Case Study</option>";
+		html += "<option>Critical Review</option>";
+		html += "<option>Debate</option>";
+		html += "<option>Discourse Analysis</option>";
+		html += "<option>Essay</option>";
+		html += "<option>Interview</option>";
+		html += "<option>Learning Contract</option>";
+		html += "<option>Literature Review</option>";
+		html += "<option>Log/Workbook</option>";
+		html += "<option>Multiple Choice</option>";
+		html += "<option>Numerical Problem Solving</option>";
+		html += "<option>Participation</option>";
+		html += "<option>Peer Review</option>";
+		html += "<option>Portfolio</option>";
+		html += "<option>Poster</option>";
+		html += "<option>Practical</option>";
+		html += "<option>Presentation</option>";
+		html += "<option>Professional Placement Performance</option>";
+		html += "<option>Professional Task</option>";
+		html += "<option>Proposal</option>";
+		html += "<option>Quiz</option>";
+		html += "<option>Reflection</option>";
+		html += "<option>Report</option>";
+		html += "<option>Self Assessment</option>";
+		html += "<option>Short Answer</option>";
+		html += "<option>Simulation</option>";
+		html += "<option>Summary</option>";
+		html += "<option>Thesis</option>";
+		html += "<option>Translation</option>";
+		html += "<option>Viva Voce</option>";
+		html += "</select>";
+
+		html += "<label>Submission: </label>";
+		html += "<input class='form-control' maxlength='254' type='text' id='ass_submission" + num + "' />";
+
+		html += "<label>Format: </label>";
+		html += "<textarea class='form-control' rows='5' id='ass_format" + num + "''></textarea>";
+
+		html += "<label>Resources: </label>";
+		html += "<textarea class='form-control' rows='5' id='ass_resources" + num + "''></textarea>";
+
+		html += "<label>Instructions: </label>";
+		html += "<textarea class='form-control' columns='50' rows='5' id='ass_instructions" + num + "''></textarea>";
+
+		html += "<label id='ass_threshold_label" + num + "'>Threshold Detail: </label>";
+		html += "<textarea class='form-control' rows='5' id='ass_threshold_detail" + num + "'></textarea>";
+
+		html += "<input class='form-control' type='hidden' id='ass_include_exemplar" + num + "' />";
+		html += '<button id="exeplarbtn' + num + '" type="button" class="btn btn-success" onclick="EnableExemplar(' + num + ')" style="margin:10px;">Add Exemplar</button>';
+		html += "<div id='exemplar" + num + "'>";
+			html += "<label>Annotated Exemplar: </label>";
+			html += "<textarea class='form-control' rows='5' id='ass_exemplar" + num + "''></textarea>";
+		html += "</div>";
+		html += "</div>";
+		html += "</div>";
+		html += "</div>";
+		html += "</div>";
+
+		return html;
+	}
+
+
+
+	// Populates the form with existing records
+	function createForms(data) {
+		// Loop over each assessment member
+	    for (var i = 0; i < g_total_ass; i++) {
+	    	// Add html for each assessment form
+	    	$("#item_forms").append(getAssHTML(i+1));
+	    	// Add data to each html form
+	    	insertData(i+1,data[i]);
+	    	// Fade the form in
+	    	$("#item_form" + (i+1)).show();
+	    	new nicEditor({fullPanel : true}).panelInstance('ass_instructions' + (i+1),{hasPanel : true});
+	    	new nicEditor({fullPanel : true}).panelInstance('ass_exemplar' + (i+1),{hasPanel : true});
+	    	// Show examplar is enabled
+	    	if ($("#ass_include_exemplar" + (i+1)).val() == "0") {
+				$("#exemplar" + (i+1)).hide();
+			} else {
+				$("#exemplar" + (i+1)).show();
+				$("#exeplarbtn" + (i+1)).html("Remove Exemplar");
+				$("#exeplarbtn" + (i+1)).removeClass("btn-success");
+				$("#exeplarbtn" + (i+1)).addClass("btn-warning");
+			}
+	    	$("#details"+(i+1)).hide();
+	    }
+	    // Add tooltip for remove
+	    $('[data-toggle="tooltip"]').tooltip();
+	}
+
+	function Submit() {
+		$("#button_save").addClass("disabled");
+		$("#button_save").attr("onclick", "");
+		g_ischange_flag = false;
+		var count = 0;
+		var json = [];
+		// Iterate over all assessments
+		for (var i = 0; i < 100; i++) {
+			if ($("#item_form"+i).length > 0) {
+				var instructions = htmlstrip(nicEditors.findEditor("ass_instructions" + i).getContent());
+				nicEditors.findEditor("ass_instructions" + i).setContent(instructions);
+				var exemplar = htmlstrip(nicEditors.findEditor("ass_exemplar" + i).getContent());
+				nicEditors.findEditor("ass_exemplar" + i).setContent(exemplar);
+				json[count] = {};
+				json[count].id = $("#ass_id" + (i)).val();
+				json[count].mode = $("#ass_mode" + (i)).val();
+				json[count].due_date = $("#ass_due_date" + (i)).val();
+				json[count].submission = $("#ass_submission" + (i)).val();
+				json[count].collaboration = $("#ass_collaboration" + (i)).val();
+				json[count].instructions = instructions;
+				json[count].format = $("#ass_format" + (i)).val();
+				json[count].resources = $("#ass_resources" + (i)).val();
+				json[count].exemplar = $("#ass_include_exemplar" + i).val();
+				json[count].exemplar_text = exemplar;
+				json[count].threshold_text = $("#ass_threshold_detail" + (i)).val();
+				count++;
+			}
+		}
+		// Submit data to database
+		var jstr = JSON.stringify(json);
+		$.ajax({
+			url: '{{ urlFor('/lg/put/assessments',{'lg_id':core.lg_id}) }}',
+			dataType: 'text',
+			data: {json: jstr},
+			type: 'POST',
+			success: function(data){
+				if (data == "success") {
+					$('html, body').animate({scrollTop: $("body").offset().top},200);
+					$('#submitted').hide();
+					$('#submitted').fadeIn(1000);
+					$('#submitted').fadeOut(2000);
+				} else {
+					alert("Error: Could not save assessments.\nMessage: " + data);
+				}
+				$("#button_save").removeClass("disabled");
+				$("#button_save").attr("onclick", "Submit()");
+			}
+		});
+	}
+
+</script>
+{% endblock %}
+
+{% block css %}
+	<style>
+		label {
+			padding: 0px;
+			margin: 8px;
+		}
+
+		.nicEdit-main table {
+			border: 1px black solid;
+			border-collapse: collapse;
+		}
+
+		.nicEdit-main table td {
+			border: 1px black solid;
+			border-collapse: collapse;
+		}
+		.nicEdit-main p {
+			padding: 0px;
+			margin: 0px;
+		}
+	</style>
+{% endblock %}
+
+{% block jumbotron %}
+	<h1>Session Detail</h1>
+	<p class="lead">Enter sessional details for the unit.<br> Use the tabs to change between different forms.</p>
+{% endblock %}
+
+
+{% block content %}
+{{ include('lg/edit/_tabs.twig') }}
+<div>
+	<div id='submitted' class='alert alert-success' role='alert' hidden><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Data Submitted</div>
+</div>
+<div>
+	<h3>2.5 Assessment Details</h3>
+	<form role="form" class="form-horizontal">
+		<div id="item_forms"></div>
+		<fieldset>
+			<button type="button" class="btn btn-primary" id="button_save" onclick="Submit()">Save</button>
+		</fieldset>
+	</form>
+</div>
+<br><br>
+
+{% endblock %}

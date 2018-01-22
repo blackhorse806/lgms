@@ -1,0 +1,12 @@
+<table class="datatable">
+    <tr><th>Item</th><th>Weight</th><th>Due Date</th><th>ULO's Assessed</th><th>Threshold</th></tr>
+    {% for item in assessments %}
+    <tr>
+        <td>{{ item.name }}</td>
+        <td>{{ item.weight }}%</td>
+        <td>{{ item.due_date }}</td>
+        <td>{{ item.ulos }}</td>
+        <td>{{ item.threshold|replace({'0': 'No', '1': 'Yes'}) }}</td>
+    </tr>
+    {% endfor %}
+</table>

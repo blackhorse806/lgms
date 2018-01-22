@@ -1,0 +1,9 @@
+<table class="datatable">
+    <tr><th></th><th>Outcomes</th></tr>
+    {% for outcome in outcomes %}
+    <tr>
+        <td>{{ outcome.number }}</td>
+        <td>{{ outcome.outcome }}</td>
+    </tr>
+    {% endfor %}
+</table>

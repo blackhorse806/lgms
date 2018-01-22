@@ -1,0 +1,87 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+<script>
+var g_ischange_flag = false;
+
+window.onload = function() {
+    $("body").keypress(function(e){
+        g_ischange_flag = true;
+    });
+};
+
+$(window).bind('beforeunload', function(){
+    if (g_ischange_flag) {
+        return 'You have not saved your changes.';
+    }
+});
+
+$(document).ready(function(){
+	$.ajax({
+		url: '{{ urlFor('/lg/get/outcomes_intro', { "lg_id" : core.lg_id }) }}',
+		method: "GET",
+		dataType: "text",
+		success: function(result) {
+			if (result != null && result != "0 results") {
+				var data = JSON.parse(result);
+				$("#learning_outcomes_intro").val(data);
+			}
+		}
+	});
+});
+
+
+// Saves form data to db
+function Submit() {
+	$("#button_save").addClass("disabled");
+	$("#button_save").attr("onclick", "");
+	g_ischange_flag = false;
+	var intro = JSON.stringify($("#learning_outcomes_intro").val());
+	$.ajax({
+		url: '{{ urlFor('/lg/put/outcomes_intro', { "lg_id" : core.lg_id }) }}',
+		dataType: 'text',
+		data: {intro: intro},
+		type: 'POST',
+		success: function(data){
+			console.log(data);
+			if (data=="success") {
+				$('html, body').animate({scrollTop: $("body").offset().top},200);
+				$('#submitted').hide();
+				$('#submitted').fadeIn(1000);
+				$('#submitted').fadeOut(2000);
+			} else {
+				alert("Error: Could not save.\nMessage: " + data);
+			}
+			$("#button_save").removeClass("disabled");
+			$("#button_save").attr("onclick", "Submit()");
+		}
+	});
+}
+
+</script>
+{% endblock %}
+
+{% block css %}
+{% endblock %}
+
+{% block jumbotron %}
+	<h1>Session Detail</h1>
+	<p class="lead">Enter sessional details for the unit.<br> Use the tabs to change between different forms.</p>
+{% endblock %}
+
+
+{% block content %}
+{{ include('lg/edit/_tabs.twig') }}
+<div id='submitted' hidden><div class="alert alert-success" role="alert">Data Saved <span class="glyphicon glyphicon-ok" aria-hidden="true"></span></div></div>
+<h2>2 Assessment Information</h2>
+<h3>2.1 Unit Learning Outcomes</h3>
+<h4>Unit Outcomes Introduction:</h4>
+<form class="form-group">
+	<textarea placeholder="No Data: Nothing will be shown in learning Guide" class="form-control" id="learning_outcomes_intro" rows="10"></textarea><br>
+	{{ include('lg/_unit_outcomes.twig') }}
+	<br><br>
+	<button type="button" class="btn btn-primary" id="button_save" onclick="Submit()">Save</button>
+</form>
+<br>
+<br>
+{% endblock %}

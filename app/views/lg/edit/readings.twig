@@ -1,0 +1,223 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+<script type="text/javascript">
+	var g_ischange_flag = false;
+	var g_readings = [];
+
+	window.onload = function() {
+		start();
+	$("body").keypress(function(e){
+			g_ischange_flag = true;
+		});
+	};
+
+	$(window).bind('beforeunload', function(){
+		if (g_ischange_flag) {
+			return 'You have not saved your changes.';
+		}
+	});
+
+	// Runs when page has loaded
+	function start() {
+		$.ajax({
+			url: '{{ urlFor('/lg/get/readings', {'lg_id':core.lg_id}) }}',
+			method: "GET",
+			dataType: "text",
+			success: function(result) {
+				if (result != null && result != "0 results") {
+					g_readings = JSON.parse(result);
+					console.log(g_readings);
+					populate();
+				}
+			}
+		});
+	}
+
+	// Adds new reading to table
+	function add_reading() {
+		var resource = {};
+		resource.id = null;
+		resource.reference = null;
+		resource.resource_type = null;
+		g_readings.push(resource);
+
+		// Add a new reading html to page
+	    $("#reading_forms").append(generate_reading_html(g_readings.length - 1));
+	    $("#reading_form" + String(g_readings.length - 1)).fadeIn();
+		console.log("#reading_form" + String(g_readings.length - 1));
+	    // Add tool tip for remove button
+	    $('[data-toggle="tooltip"]').tooltip();
+	}
+
+	// Deletes a reading from table
+	function remove_text(i) {
+		$("#reading_form" + i).animate({height: "0px"}).queue(function(){$(this).remove();});
+		g_readings[i].deleted = true;
+	}
+
+	// Puts the data in a reading form record
+	function populate_reading(num, record) {
+		if (!record.hasOwnProperty('deleted')) {
+			$("#reading_id" + (num)).val(record.id);
+		    $("#reference" + (num)).val(record.reference);
+		    $("#resource_type" + (num)).val(record.resource_type);
+			if (record.resource_type == "Essential Reading" || record.resource_type == "Prescribed Textbook") {
+				$("#resource_type" + (num)).prop("disabled", true);
+				$("#reference" + (num)).prop("disabled", true);
+				$("#reading_remove" + (num)).hide();
+			}
+		}
+	}
+
+	// Returns the html for a new reading form
+	function generate_reading_html(num) {
+		var html = "";
+		html += "<div class='form-group' id='reading_form" + num + "' hidden>";
+		html += "<div class='panel panel-default'>";
+	 	html += "<div class='panel-body'>";
+	 	html += ""
+		html += "<span class='glyphicon glyphicon-remove pull-right' onclick='remove_text(" + num + ")' id='reading_remove" + num + "' data-toggle='tooltip' title='Remove'></span>";
+
+		html += "<table><tr>";
+		html += "<td>";
+		html += "<label>Resource Type</label>";
+		html += "<select class='form-control' id='resource_type" + num + "'>";
+		html += "<option></option>";
+		html += "<option disabled>Prescribed Textbook</option>";
+		html += "<option>Additional Reading</option>";
+		html += "<option disabled>Essential Reading</option>";
+		html += "<option>Online Resource</option>";
+		html += "<option>Literacy and/or Numeracy Resource</option>";
+		html += "</select>";
+
+		html += "</td><td>";
+		html += "&nbsp;&nbsp;";
+		html += "</td><td>";
+
+		html += "</td></tr></table>";
+
+		html += "<input class='form-control' type='hidden' id='reading_id" + num  +  "' value='' />";
+		html += "<input class='form-control' type='hidden' id='restricted" + num  +  "' value='' />";
+
+		html += "<label>Reference: </label>";
+		html += "<textarea placeholder='' class='form-control' rows='2' id='reference" + num + "''></textarea>";
+
+		html += "</div>";
+		html += "</div>";
+		html += "</div>";
+
+		return html;
+	}
+
+
+	// Populates the form with existing records
+	function populate() {
+		if (g_readings == null) {
+			return;
+		}
+		// Loop over each reading
+	    for (var i = 0; i < g_readings.length; i++) {
+	    	// Add html for each reading form
+			if (!g_readings[0].hasOwnProperty('deleted')) {
+	    		$("#reading_forms").append(generate_reading_html(i));
+	    		populate_reading(i,g_readings[i]);
+			}
+	    	$("#reading_form" + (i)).show();
+	    }
+	    // Add tooltip for remove
+	    $('[data-toggle="tooltip"]').tooltip();
+	}
+
+	function extract_data() {
+		for (var i = 0; i < g_readings.length; i++) {
+			if (!g_readings[i].hasOwnProperty('deleted')) {
+				g_readings[i].reference =  $("#reference" + (i)).val();
+				if (g_readings[i].resource_type != "Prescribed Textbook" && g_readings[i].resource_type != "Essential Reading") {
+					g_readings[i].resource_type =  $("#resource_type" + (i)).val();
+				}
+			}
+		}
+	}
+
+	function lock_buttons() {
+		$("#button_save").html("Saving <img src='/img/saving.gif'>");
+		$("#button_save").attr("onclick", "");
+		$("#button_save").addClass("disabled");
+		$("#button_add").attr("onclick", "");
+		$("#button_add").addClass("disabled");
+	}
+
+	function unlock_buttons() {
+		$("#button_save").text("Save");
+		$("#button_save").attr("onclick", "Submit()");
+		$("#button_save").removeClass("disabled");
+		$("#button_add").attr("onclick", "add_reading()");
+		$("#button_add").removeClass("disabled");
+	}
+
+	function reset_form() {
+		$("#reading_forms").html("");
+		start();
+	}
+
+	function Submit() {
+		lock_buttons();
+		g_ischange_flag = false;
+		extract_data();
+		json = JSON.stringify(g_readings);
+		$.ajax({
+			url: '{{ urlFor('/lg/put/readings', {'lg_id':core.lg_id}) }}',
+			dataType: 'text',
+			data: {json: json},
+			type: 'POST',
+			success: function(data){
+				if (data=="success") {
+					$('html, body').animate({scrollTop: $("body").offset().top},200);
+					$('#submitted').hide();
+					$('#submitted').fadeIn(1000);
+					$('#submitted').fadeOut(2000);
+				} else {
+					alert("Save failed:\n" + data);
+				}
+				reset_form();
+				unlock_buttons();
+			}
+		});
+	}
+
+</script>
+{% endblock %}
+
+{% block css %}
+{% endblock %}
+
+{% block jumbotron %}
+<h1>Session Detail</h1>
+<p class="lead">Enter sessional details for the unit.<br> Use the tabs to change between different forms.</p>
+{% endblock %}
+
+
+{% block content %}
+{{ include('lg/edit/_tabs.twig') }}
+<div>
+	<div id='submitted' class='alert alert-success' role='alert' hidden><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Data Submitted</div>
+</div>
+<h2>4. Learning Resources</h2>
+<h3>4.1 Recommended Readings</h3>
+<span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span> Place only one reading in each reference<br>
+<span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span> Prescribed Textbook and Essential Readings require a Library Variation, contact <a href="mailto:L.Thornely@westernsydney.edu.au?subject=Readings">Linda Thornely</a> for assistance<br>
+<span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span> Refer to the <a href="http://library.westernsydney.edu.au/main/guides/referencing-citation" target="_blank">Citation Guides</a> for referencing style<br><br>
+
+<div>
+	<form role="form" id="reading_form" class="form-horizontal">
+		<div id="reading_forms"></div>
+		<fieldset>
+			<button type="button" class="btn btn-success" onclick="add_reading()" id="button_add">Add Reading</button><br><br>
+			<button type="button" class="btn btn-primary" onclick="Submit()" id="button_save">Save</button>
+		</fieldset>
+	</form>
+</div>
+<br>
+<br>
+{% endblock %}

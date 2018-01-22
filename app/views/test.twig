@@ -1,0 +1,49 @@
+{% extends "layouts/master.twig" %}
+
+{% block css %}
+{% endblock %}
+
+{% block jumbotron %}
+<h1>Test</h1>
+{% endblock %}
+
+{% block content %}
+	{% for course in clos %}
+	    <h3>{{ course.course_code }}: {{ course.name }}</h3>
+		{% for outcome in course.course_outcomes %}
+	    	{{ outcome.num }}. {{ outcome.outcome }}<br>
+		{% endfor %}
+		<table border=1>
+		<tr><td></td>
+		{% set ulo = 0 %}
+		{% for cell in course.contributions[0] %}
+			{% set ulo = ulo + 1 %}
+			<th style="width:25px;height:15px;text-align:center;">{{ ulo }}</th>
+		{% endfor %}
+		</tr>
+		{% set clo = 0 %}
+		{% for row in course.contributions %}
+			<tr>
+			{% set outcome = course.course_outcomes[clo].num ~ '. ' ~ course.course_outcomes[clo].outcome[0:30] %}
+			<td>
+			{% if outcome %}
+				{{ outcome }}
+			{% else %}
+			    &nbsp;
+			{% endif %}
+			</td>
+			{% set clo = clo + 1 %}
+			{% for cell in row %}
+			    <td style="width:25px;height:15px;text-align:center;">
+					{% if cell.contribution %}
+						{{ cell.contribution }}
+					{% else %}
+					    &nbsp;
+					{% endif %}
+				</td>
+			{% endfor %}
+			</tr>
+		{% endfor %}
+		</table>
+	{% endfor %}
+{% endblock %}

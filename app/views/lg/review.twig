@@ -1,0 +1,252 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+<script type="text/javascript">
+	var g_checklist =  {{ checklist[0]|json_encode()|raw }};
+	var num_checks = 0;
+
+	window.onload = function() {
+		$(".starter-template").remove();
+		$("#embed").attr("src", "{{ urlFor('/lg/view_pdf', {'lg_id' : core.lg_id}) }}?t=" + new Date().getTime());
+
+		start();
+
+		$('.chkbox').change(function() {
+			if($(this).is(":checked")) {
+				num_checks++;
+			} else {
+				num_checks--;
+			}
+			$('.chkbox').val($(this).is(':checked'));
+			CheckForApprove();
+		});
+	}
+
+
+
+   function CheckForApprove() {
+		if (num_checks == 22) {
+			$("#save").removeClass("btn-primary");
+			$("#save").html("APPROVE");
+			$("#save").addClass("btn-success");
+		} else {
+			$("#save").removeClass("btn-success");
+			$("#save").html("Save");
+			$("#save").addClass("btn-primary");
+		}
+   }
+
+
+	// Runs when page has loaded
+	function start() {
+		$.ajax({
+			url: '{{ urlFor('/lg/get/checklist', {'lg_id':core.lg_id}) }}',
+			method: "GET",
+			dataType: "text",
+			success: function(result) {
+				if (result != null && result != "0 results") {
+					g_checklist = JSON.parse(result);
+					console.log(g_checklist);
+					//populate();
+					if (g_checklist != null) {
+						for (var i = 1; i <= 22; i++) {
+							if (g_checklist["x" + i] == "1") {
+								$("input[name='x" + i + "']").prop("checked",true);
+								num_checks++;
+							}
+						}
+						$("textarea[name*='comments']").val(g_checklist["comments"]);
+						$("input[name*='id']").val(g_checklist["id"]);
+						CheckForApprove();
+					}
+
+				}
+			}
+		});
+	}
+
+	function Email() {
+		$(".btn").addClass('disabled');
+		$("#email").html("Emailing");
+		$("#email").attr("onclick", "");
+
+		$.ajax({
+			url: "{{ urlFor('/lg/email/checklist', {'lg_id':core.lg_id}) }}",
+			method: "POST",
+			dataType: "text",
+			success: function(result) {
+				if (result.trim() == "success") {
+					$("#email").html("Email Sent!");
+					alert("Email sent!");
+					window.location = "{{ urlFor('/lg', {'lg_id':core.lg_id}) }}";
+				} else {
+					alert("Email Error!\n" + result);
+				}
+				$("#email").html("Save &amp; Email UC");
+				$("#email").attr("onclick", "Submit(Email)");
+				$(".btn").removeClass('disabled');
+			}
+		});
+
+	}
+
+	function Submit(exefunct) {
+		$(".btn").addClass('disabled');
+		$("#save").html("Saving...");
+		$("#save").attr("onclick", "");
+		g_ischange_flag = false;
+		// Create checklist if it doesn't exist
+		if (g_checklist == null) {
+			g_checklist = {};
+		}
+		// Update values in checklist
+		for (var i = 1; i <= 22; i++) {
+			if ($("input[name='x" + i + "']").prop("checked")) {
+				g_checklist["x" + i] = "1";
+			} else {
+				g_checklist["x" + i] = "0";
+			}
+		}
+		g_checklist["comments"] = $("textarea[name*='comments']").val();
+		g_checklist["id"] = $("input[name*='id']").val();
+		if (num_checks == 22) {
+			g_checklist["approved"] = true;
+		} else {
+			g_checklist["approved"] = false;
+		}
+
+		json = JSON.stringify(g_checklist);
+		$.ajax({
+			url: '{{ urlFor('/lg/put/checklist', {'lg_id':core.lg_id}) }}',
+			dataType: 'text',
+			data: {json: json},
+			type: 'POST',
+			success: function(data){
+				if (data=="success") {
+					if (exefunct != undefined) {
+						exefunct();
+					}
+					$('#submitted').hide();
+					$('#submitted').fadeIn(1000);
+					$('#submitted').fadeOut(2000);
+
+				} else {
+					alert("Save failed:\n" + data);
+				}
+				$("#save").html("Save");
+				$("#save").attr("onclick", "Submit()");
+				$(".btn").removeClass('disabled');
+				CheckForApprove();
+			}
+		});
+	}
+</script>
+{% endblock %}
+
+
+{% block css %}
+<style>
+	#checklist_table {
+		border-collapse: collapse;
+		font-size: 12px;
+		margin: 5%;
+	}
+
+	#checklist_table td {
+		padding-left: 10px;
+		vertical-align: center;
+	}
+	#checklist_table td {
+		padding-top: 7px;
+	}
+
+	h1 {
+		text-align: center;
+	}
+
+	.chkbox {
+		vertical-align: top;
+		text-align: left;
+		width: 15px;
+		height: 15px;
+	}
+
+	b {
+		font-size: 15px;
+	}
+
+</style>
+{% endblock %}
+
+{% block content %}
+	</div></div>
+	<div>
+		<div id='submitted' class='alert alert-success' role='alert' hidden><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Data Submitted</div>
+	</div>
+	<input type="text" name="id" hidden>
+	<table width="100%" height="95%">
+	<tr>
+		<td width="60%">
+			<embed src="{{ urlFor('/lg/view_pdf', {'lg_id' : core.lg_id}) }}" width="100%" height="100%" ></embed>
+		</td>
+		<td height="100%">
+		<form method="post" action="{{ urlFor('/lg/review', {'lg_id' : core.lg_id}) }}">
+			<table id="checklist_table">
+				<tr><td colspan="2"><b>Staff Information</b></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x1"></td><td>Units coordinators name and associated details (including consultation arrangements)</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x2"></td><td>Teaching Staff and associated details (including consultation arrangements)</td></tr>
+
+				<tr style='border: 0px;'><td style='border: 0px;' colspan="2"><b>1.3 Changes to Unit as a Result of Past Student Feedback</b></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x3"></td><td>Ensure that there is a quality responses to <i>'Actions taken to improve the unit as a result of student feedback'</i>.  This section can be left blank, however consistence change to improve the unit as a result of student feedback is expected</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x4"></td><td>Make sure no extra bullet points are included, as this is bulleted automatically</td></tr>
+
+				<tr style='border: 0px;'><td style='border: 0px;' colspan="2"><b>2.1 Unit Learning Outcomes</b></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x5"></td><td>Check that the Unit Learning Outcomes have not be listed in the Introduction to Learning Outcomes section</td></tr>
+
+				<tr style='border: 0px;'><td style='border: 0px;' colspan="2"><b>2.2 Approach to Learning</b></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x6"></td><td>Check that each approach item has been provided some information (vUWS can be left blank)</td></tr>
+
+				<tr style='border: 0px;'><td style='border: 0px;' colspan="2"><b>2.3 Contribution to Course Learning Outcomes</b></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x7"></td><td>Contribution to Course Learning Outcomes (CLOs) OR Graduate Attributes table is entered</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x8"></td><td>The correct courses are included (service units require the Graduate Attributes)</td></tr>
+
+				<tr style='border: 0px;'><td style='border: 0px;' colspan="2"><b>2.4 Assessment Summary</b></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x9"></td><td>Ensure that the '<i>To pass this unit you must</i>' is comprehensive and does not include anything unusual.  (Make sure they have not entered '<i>To pass this unit you must</i>')</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x10"></td><td>Ensure that the '<i>Feedback on Assessments</i>' section has been completed and provided the student satisfactory information on when they are expected to receive feedback and also what type of feedback</td></tr>
+
+				<tr style='border: 0px;'><td style='border: 0px;' colspan="2"><b>2.5 Assessment Details</b></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x11"></td><td>Due date is entered</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x12"></td><td>Collaboration type is selected</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x13"></td><td>Submission information is clear and not confusing</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x14"></td><td>Format information is clear</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x15"></td><td>Curriculum Mode is selected</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x16"></td><td>Threshold detail is filled out when required</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x17"></td><td>Assessment Instructions have been filled out and ensure that it is both clear and concise</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x18"></td><td>Assessment Resource information is clear and directive (can be left blank)</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x19"></td><td>Marking criteria and standards are clear and concise</td></tr>
+
+				<tr style='border: 0px;'><td style='border: 0px;' colspan="2"><b>3 Activities</b></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x20"></td><td>Assessment items are selected for the weeks they are due</td></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x21"></td><td>Ensure enough information is provided within each activity type, some can be left blank</td></tr>
+
+				<tr style='border: 0px;'><td style='border: 0px;' colspan="2"><b>4 Learning Resources</b></tr>
+				<tr><td><input class="chkbox" type="checkbox" name="x22"></td><td>Ensure all learning resources  are referenced correctly</td></tr>
+			</table>
+			<tr style='border: 0px;'><td></td><td style='border: 0px;' colspan="2"><b>Comments</b></td></tr>
+			<tr><td></td><td colspan="2"><textarea class="form-control" rows="5" name="comments"></textarea></td></tr>
+			<tr><td></td><td colspan="2"><input type="hidden" name="id" value=""></td></tr>
+			<tr><td></td><td colspan="2">
+			<br><br>
+		</form>
+		<button id="save" class="btn btn-primary" onclick="Submit()">Save</button>
+		<br><br>
+		<button id="email" class="btn btn-primary" onclick="Submit(Email)">Save &amp; Email UC</button>
+		<br><br>
+	</td></tr>
+</table>
+<script type="text/javascript">
+	// IE requires this to be down here
+	$("#embed").attr("src", "{{ urlFor('/lg/view_pdf', {'lg_id' : core.lg_id}) }}?t=" + new Date().getTime());
+</script>
+
+{% endblock %}

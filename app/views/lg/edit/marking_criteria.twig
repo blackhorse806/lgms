@@ -1,0 +1,269 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+<script type="text/javascript">
+// Set global variables
+var ass = [];
+var ischange_flag = false;
+
+// Run start when document has loaded
+$(document).ready(function(){
+	start();
+	$("body").keypress(function(e){
+	    ischange_flag = true;
+	});
+});
+
+$(window).bind('beforeunload', function(){
+	if (ischange_flag) {
+		return 'You have not saved your changes.';
+	}
+});
+
+function start() {
+	// Get all the data from database, create/populate dynamic page items
+	$.ajax({
+		url: "{{ urlFor('/lg/get/marking_criteria', {'lg_id':core.lg_id}) }}",
+		method: "GET",
+		dataType: "text",
+		success: function(result) {
+			if (result != null && result != "0 results") {
+				// convert result json text into json object
+				data = JSON.parse(result);
+				for (var i = 0; i < data.length; i++) {
+					// Store assessment data in ass object
+					ass[i] = {};
+					ass[i].id = data[i].id;
+					ass[i].title = data[i].name;
+					ass[i].type = data[i].marking_criteria_type;
+					ass[i].plain = data[i].marking_criteria_plain;
+					ass[i].rich = data[i].marking_criteria_rich;
+					ass[i].rows = 0;
+					ass[i].table = data[i].table;
+					// Add assessment to page
+					create_assessment(i);
+					// Add the table to the assesment form
+					create_table_form(i);
+					// Set type button to correct type
+					set_form_type(ass[i].type, i);
+					// Show the selected type for assessment
+					show_form_type(i);
+					// Populate marking criteria table
+					populate_table(i);
+					// Insert data into plain field
+					$("#plain_field" + i).val(ass[i].plain);
+					// Insert data into rich field
+					nicEditors.findEditor("rich_field" + i).setContent(ass[i].rich);
+				}
+			}
+		}
+	});
+}
+
+function populate_table(ass_index) {
+	criteria = ass[ass_index].table;
+	for (var table_index = 0; table_index < criteria.length; table_index++) {
+		// Add row to page
+		if (table_index > 0) {add_row(ass_index);}
+		// Add data values to form
+		$("#a" + ass_index + "r" + table_index + "c0").val(criteria[table_index].criteria);
+		$("#a" + ass_index + "r" + table_index + "c1").val(criteria[table_index].hd);
+		$("#a" + ass_index + "r" + table_index + "c2").val(criteria[table_index].d);
+		$("#a" + ass_index + "r" + table_index + "c3").val(criteria[table_index].c);
+		$("#a" + ass_index + "r" + table_index + "c4").val(criteria[table_index].p);
+		$("#a" + ass_index + "r" + table_index + "c5").val(criteria[table_index].f);
+	}
+}
+
+// Adds the form elements for the given assessment table index
+function create_table_form (i) {
+	var output = "";
+	output += "<form class='form-horizontal'>";
+	output += "<div id='table" + i + "'>";
+	output += "<table id='tabledata" + i + "'><tr><th>Criteria</th><th>High Distinction</th><th>Distinction</th><th>Credit</th><th>Pass</th><th>Unsatisfactory</th></tr><tbody>";
+	output += "</tbody></table>";
+	output += "<br><button type='button' class='btn btn-success' onclick='add_row(" + i + ")'>Add Row</button> ";
+	output += "<button type='button' class='btn btn-success' onclick='remove_row(" + i + ")'>Remove Last Row</button>";
+	output += "</div>"
+
+	output += "<div id='rich" + i + "'>";
+	output += "<textarea id='rich_field" + i + "' style='width:100%;' rows='10'></textarea>"
+	output += "</div>"
+
+	output += "<div id='plain" + i + "'>";
+	output += "<textarea id='plain_field" + i + "' style='width:100%;' rows='10'></textarea>"
+	output += "</div>"
+	output += "</form>";
+	$("#ass" + i).append(output);
+	// Add rich text editor - must be done before hiding
+	new nicEditor({fullPanel : true}).panelInstance('rich_field' + i,{hasPanel : true});
+	// Add row so the table is not empty
+	add_row(i);
+}
+
+// Inserts an assessment panel, sets values by ass index (i)
+function create_assessment (i) {
+	var output = "";
+	output += "<div class='panel panel-default' id='unitinfo'><div class='panel-heading'>" + ass[i].title + "</div><div class='panel-body' id='ass" + i + "'>";
+	output += "<button type='button' class='btn btn-success btn" + i + "' id='btntable" + i + "' onclick='set_form_type(\"table\"," + i + ")'>Table</button> ";
+	output += "<button type='button' class='btn btn-default btn" + i + "' id='btnrich" + i + "' onclick='set_form_type(\"rich\"," + i + ")'>Rich Text</button> ";
+	output += "<button type='button' class='btn btn-default btn" + i + "' id='btnplain" + i + "' onclick='set_form_type(\"plain\"," + i + ")'>Plain Text</button> ";
+	output += "<button type='button' class='btn btn-default btn" + i + "' id='btnnone" + i + "' onclick='set_form_type(\"none\"," + i + ")'>None</button><br><br>";
+	output += "</div></div></div>";
+	$("#assessments").append(output);
+}
+
+// Sets the type of form for an ass index i
+function set_form_type (criteria_type, i) {
+	if (criteria_type == null) {
+		criteria_type = "none";
+		ass[i].type = "none";
+	}
+	ass[i].type = criteria_type;
+
+	$(".btn" + i).removeClass("btn-success");
+	$(".btn" + i).addClass("btn-default");
+	$("#btn" + criteria_type + i).addClass("btn-success");
+
+	show_form_type(i);
+}
+
+// Changes the view of the forms for ass index i
+function show_form_type (i) {
+	$('#table' + i).hide();
+	$('#rich' + i).hide();
+	$('#plain' + i).hide();
+	switch (ass[i].type) {
+		case "rich": $('#rich' + i).show(); break;
+		case "plain": $('#plain' + i).show(); break;
+		case "table": $('#table' + i).show(); break;
+	}
+}
+
+// Adds a row to table with ass index i
+function add_row (i) {
+	var row = ass[i].rows++;
+	var output = "";
+	output += "<tr>";
+	output += "<td><textarea cols='30' rows='5' class='form-control' id='a" + i + "r" + row + "c0'></textarea></td>";
+	output += "<td><textarea cols='30' rows='5' class='form-control' id='a" + i + "r" + row + "c1'></textarea></td>";
+	output += "<td><textarea cols='30' rows='5' class='form-control' id='a" + i + "r" + row + "c2'></textarea></td>";
+	output += "<td><textarea cols='30' rows='5' class='form-control' id='a" + i + "r" + row + "c3'></textarea></td>";
+	output += "<td><textarea cols='30' rows='5' class='form-control' id='a" + i + "r" + row + "c4'></textarea></td>";
+	output += "<td><textarea cols='30' rows='5' class='form-control' id='a" + i + "r" + row + "c5'></textarea></td>";
+	output += "</tr>";
+	$("#tabledata"+i).append(output);
+}
+
+// Returns data from a ass table row
+function get_row (i, row) {
+	// Catch already deleted row, occurs only after blank submit
+	if (ass[i].table[row] == null) {
+		ass[i].table[row] = {};
+		ass[i].table[row].id = "";
+	}
+	//console.log(i + "," + row);
+	var result = {};
+	result.id = ass[i].table[row].id;
+	result.criteria = $.trim($("#a" + i + "r" + row + "c0").val());
+	result.hd = $.trim($("#a" + i + "r" + row + "c1").val());
+	result.d = $.trim($("#a" + i + "r" + row + "c2").val());
+	result.c = $.trim($("#a" + i + "r" + row + "c3").val());
+	result.p = $.trim($("#a" + i + "r" + row + "c4").val());
+	result.f = $.trim($("#a" + i + "r" + row + "c5").val());
+	if (ass[i].rows - 1 == row && (result.criteria + result.HD + result.D + result.C + result.P + result.F) == "") {
+		return null;
+	}
+	return result;
+}
+
+// Removes a row from from table of ass index i
+function remove_row(i) {
+	ischange_flag = true;
+	if ($('tr', "#tabledata"+i).length > 1) {
+		$('tr:last', "#tabledata"+i).remove();
+		ass[i].rows--;
+		ass[i].table.splice(ass[i].rows, 1);
+		if ($('tr', "#tabledata"+i).length == 1) {
+			add_row(i);
+		}
+	}
+}
+
+// Submits the data to the database
+function Submit() {
+	ischange_flag = false;
+	// Loop over each assessment
+	for (var i = 0; i < ass.length; i++) {
+		// Store plain field
+		ass[i].plain = $("#plain_field" + i).val();
+		// Store rich field
+		ass[i].rich = htmlstrip($.trim(nicEditors.findEditor("rich_field" + i).getContent()));
+		$.trim(nicEditors.findEditor("rich_field" + i).setContent(ass[i].rich));
+		// Remove rich text excess for blank
+		if (ass[i].rich == "<br>") {ass[i].rich = "";}
+		// Loop over each table row
+		for (var j = 0; j < ass[i].rows; j++) {
+			// Get data from row and store
+			ass[i].table[j] = get_row(i,j);
+		}
+	}
+	console.log(ass);
+	var json = JSON.stringify(ass);
+	$.ajax({
+		url: '{{ urlFor('/lg/put/marking_criteria',{'lg_id':core.lg_id}) }}',
+		dataType: 'text',
+		data: {json : json},
+		type: 'POST',
+		success: function(data){
+			if (data=="success") {
+				$('html, body').animate({scrollTop: $("body").offset().top},200);
+				$('#submitted').hide();
+				$('#submitted').fadeIn(1000);
+				$('#submitted').fadeOut(2000);
+			} else {
+				alert("Save failed!\nMessage: " + data);
+			}
+		}
+	});
+}
+
+</script>
+{% endblock %}
+
+{% block css %}
+<link href="/css/clo.css" rel="stylesheet">
+<script src="/js/nicEdit.js"></script>
+<script src="/js/htmlstrip.js"></script>
+<style type="text/css">
+	.form-control {
+		font-size: 10px;
+	}
+
+	.form-horizontal table th {
+		text-align: center;
+	}
+
+	p {
+		padding: 0px;
+		margin: 0px;
+	}
+</style>
+{% endblock %}
+
+{% block jumbotron %}
+	<h1>Session Detail</h1>
+	<p class="lead">Enter sessional details for the unit.<br> Use the tabs to change between different forms.</p>
+{% endblock %}
+
+
+{% block content %}
+	{{ include('lg/edit/_tabs.twig') }}
+	<div>
+		<div id='submitted' class='alert alert-success' role='alert' hidden><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Data Submitted</div>
+	</div>
+	<br>
+	<div id="assessments"></div>
+	<button type="button" class="btn btn-primary" onclick="Submit()">Save</button>
+	<br><br>
+{% endblock %}

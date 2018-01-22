@@ -1,0 +1,111 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+<script>
+var g_ischange_flag = false;
+
+window.onload = function() {
+    $("body").keypress(function(e){
+        g_ischange_flag = true;
+    });
+};
+
+$(window).bind('beforeunload', function(){
+    if (g_ischange_flag) {
+        return 'You have not saved your changes.';
+    }
+});
+
+$(document).ready(function(){
+	$.ajax({
+		url: '{{ urlFor('/lg/get/assessment_summary', { "lg_id" : core.lg_id }) }}',
+		method: "GET",
+		dataType: "text",
+		success: function(result) {
+			if (result != null && result != "0 results") {
+				var data = JSON.parse(result);
+				$("#pass_criteria").val(data.pass_criteria);
+				$("#assessment_feedback").val(data.feedback);
+			}
+		}
+	});
+});
+
+
+// Saves form data to db
+function Submit() {
+	$("#button_save").addClass("disabled");
+	$("#button_save").attr("onclick", "");
+	g_ischange_flag = false;
+	var data = {};
+	data.pass_criteria = $("#pass_criteria").val();
+	data.feedback = $("#assessment_feedback").val();
+	var data = JSON.stringify(data);
+	$.ajax({
+		url: '{{ urlFor('/lg/put/assessment_summary', { "lg_id" : core.lg_id }) }}',
+		dataType: 'text',
+		data: {data : data},
+		type: 'POST',
+		success: function(data){
+			console.log(data);
+			if (data=="success") {
+				$('html, body').animate({scrollTop: $("body").offset().top},200);
+				$('#submitted').hide();
+				$('#submitted').fadeIn(1000);
+				$('#submitted').fadeOut(2000);
+			} else {
+				alert("Error: Could not save.\nMessage: " + data);
+			}
+			$("#button_save").removeClass("disabled");
+			$("#button_save").attr("onclick", "Submit()");
+		}
+	});
+}
+
+</script>
+{% endblock %}
+
+{% block css %}
+{% endblock %}
+
+{% block jumbotron %}
+	<h1>Session Detail</h1>
+	<p class="lead">Enter sessional details for the unit.<br> Use the tabs to change between different forms.</p>
+{% endblock %}
+
+
+{% block content %}
+{{ include('lg/edit/_tabs.twig') }}
+<div>
+	<div id='submitted' class='alert alert-success' role='alert' hidden><span class="glyphicon glyphicon-ok" aria-hidden="true"></span> Data Submitted</div>
+</div>
+<form class="form-group">
+	<h3>2.4 Assessment Summary</h3>
+	<p>The assessment items in this unit are designed to enable you to demonstrate that you have achieved the unit learning
+	outcomes. Completion and submission of all assessment items which have been designated as mandatory or compulsory
+	is essential to receive a passing grade.</p>
+	<label for="Pass_Criteria">To pass this unit you must:</label><br>
+	<textarea placeholder="No Data: Nothing will be shown in learning Guide" class="form-control" id="pass_criteria" rows="10"></textarea><br>
+
+	{{ include('lg/_unit_ass_summary.twig') }}
+	<br>
+	<p>Note: Results may be moderated before you receive your results. Moderation is a process whereby the unit coordinator
+	regulates the marking of individual markers to achieve consistency in the application of unit objectives, performance
+	standards and marking criteria. Marks for an individual piece of assessment will not be changed after you have
+	your results. You should note that, consistent with the Assessment Policy - Criteria and Standards-Based Assessment
+	(http://policies.uws.edu.au/view.current.php?id=00227), the final marks for the cohort may also be adjusted
+	if marks are very high or low or there are inconsistencies between groups.</p>
+
+	<label for="Ass_Feed">Assessment Feedback:</label><br>
+	<p>Feedback is an important part of the learning process that can improve your progress towards achieving the learning
+	outcomes. Feedback is any written or spoken response made in relation to academic work such as an assessment
+	task, a performance or product. It can be given to you by a teacher, an external assessor or student peer and may be
+	given to individually or to a group of students. As a Western Sydney University student, it is your responsibility to seek
+	out and act on feedback that is provided to you as a resource to further your learning.</p>
+	<textarea placeholder="No Data: Nothing will be shown in learning Guide" class="form-control" id="assessment_feedback" rows="10"></textarea><br>
+	<button type="button" class="btn btn-primary" id="button_save" onclick="Submit()">Save</button>
+</form>
+<br>
+<br>
+
+{% endblock %}

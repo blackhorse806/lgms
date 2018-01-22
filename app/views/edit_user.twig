@@ -1,0 +1,186 @@
+{% extends "layouts/master.twig" %}
+
+{% block js %}
+<script>
+	var stafflookup = {{ users|json_encode|raw }};
+    var g_current_index = 0;
+    
+	$(document).ready(function(){
+		$("#staff_select").on("change", function() {
+			// Reset form
+			$("#name").val('');
+			$("#admin").prop("checked",false);
+			$("#developer").prop("checked",false);
+			$("#uc").prop("checked",false);
+			$("#dap").prop("checked",false);
+			$("#acting_dap").prop("checked",false);
+
+			// Nothing to populate
+			if ($(this).val() == '') {
+				return;
+			}
+
+			var user = null;
+			// Search through all to find matching id
+			for (var i = 0; i < stafflookup.length; i++) {
+				if (stafflookup[i].id == $(this).val()) {
+					user = stafflookup[i];
+                    g_current_index = i;
+                    break;
+				}
+			}
+
+			// Populate form
+			$("#name").val(user.name);
+			$("#acting_dap_id").val(user.acting_dap_id);
+
+			if (user.admin == "1") {
+				$("#admin").prop("checked",true);
+			}
+
+			if (user.developer == "1") {
+				$("#developer").prop("checked",true);
+			}
+
+			if (user.uc == "1") {
+				$("#uc").prop("checked",true);
+			}
+
+			if (user.dap == "1") {
+				$("#dap").prop("checked",true);
+			}
+
+			if (user.acting_dap == "1") {
+				$("#acting_dap").prop("checked",true);
+			}
+		});
+
+	});
+
+    function get_data() {
+        
+        // Create user and null all fields
+        var user_details = {};
+        user_details.id = null;
+        user_details.name = null;
+        user_details.admin = null;
+        user_details.developer = null;
+        user_details.uc = null;
+        user_details.dap = null;
+        user_details.acting_dap = null;
+        user_details.acting_dap_id = null;
+  
+        // Get all data
+        user_details.id = $("#staff_select").val();
+        user_details.name = $("#name").val();
+        user_details.admin = get_check("admin");
+        user_details.developer = get_check("developer");
+        user_details.uc = get_check("uc");
+        user_details.dap = get_check("dap");
+        user_details.acting_dap = get_check("acting_dap");
+        user_details.acting_dap_id = $("#acting_dap_id").val();
+        
+        return user_details;
+    }
+
+    function get_check(id_name) {
+        if ($("#" + id_name).prop("checked")) {
+            return "1";
+        } else {
+            return "0";
+        }
+    }
+
+	function submit() {
+		var user_data = get_data();
+		$.ajax({
+			url: '{{ urlFor('/edit_user/save') }}',
+			dataType: 'text',
+			data: {data : JSON.stringify(user_data)},
+			type: 'POST',
+			success: function(data){
+				console.log(data);
+				if (data=="success") {
+					$('#submitted').hide();
+					$('#submitted').fadeIn(1000);
+					setTimeout(function() {
+						$('#submitted').fadeOut(2000);
+					}, 2000);
+					g_has_changed = false;
+                    // Update select name
+					$('#staff_select option:contains("' + user_data.name + '")').text(user_data.name);
+                    // Update lookup data
+                    stafflookup[g_current_index] = user_data;
+				} else {
+					alert("Error: Could not save.\nMessage: " + data);
+				}
+				$(".alpaca-form-button-submit").removeClass("disabled");
+				$(".alpaca-form-button-submit").html("Save");
+				g_lock = false;
+			}
+		});
+	}
+</script>
+{% endblock %}
+
+{% block css %}
+<style media="screen">
+	#submitted {
+		position: fixed;
+		top: 75px;
+		right: 50px;
+		width: 200px;
+	}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<h1>Edit User</h1>
+<div style="text-align: left;">
+<br>
+<p><span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span> When a user logs into the system the first time a user account is automatically created</p>
+<div id='submitted' hidden><div class="alert alert-success" role="alert">Data Saved <span class="glyphicon glyphicon-ok" aria-hidden="true"></span></div></div>
+
+	<label>Select User:</label>
+	<select id="staff_select" class="form-control" autofocus>
+		<option></option>
+		{% for item in users %}
+		    <option value="{{ item.id }}">{{ item.name }}</option>
+		{% endfor %}
+	</select>
+
+<div id="details" style="padding-top: 20px;">
+	<label>Change Name</label>
+	<input id="name" class="form-control" type='text'/>
+	<br>
+	<h3>Permissions</h3>
+
+	<input id="developer" type="checkbox"/>
+	<label>Developer</label>
+	<br>
+	<input id="admin" type="checkbox"/>
+	<label>Admin</label>
+	<br>
+	<input id="uc" type="checkbox"/>
+	<label>Unit Coordinator</label>
+	<br>
+	<input id="dap" type="checkbox"/>
+	<label>DAP</label>
+	<br>
+	<input id="acting_dap" type="checkbox"/>
+	<label>Acting DAP</label>
+    <br>
+	<label>Acting DAP for</label>
+	<select id="acting_dap_id" class="form-control">
+		<option></option>
+		{% for item in users %}
+		    <option value="{{ item.id }}">{{ item.name }}</option>
+		{% endfor %}
+	</select>
+	<br>
+	<div id="submit" class="btn btn-primary" onclick="submit()">Apply to user</div>
+
+</div>
+
+{% endblock %}
