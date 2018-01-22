@@ -1,0 +1,29 @@
+
+.datatable th {
+	font-weight:bold;
+	background-color:#c0c0c0;
+	vertical-align:top
+	font-family:Arial, sans-serif;
+	font-size:14px;
+	font-weight:normal;
+	padding:10px 5px;
+	border-style:solid;
+	border-width:1px;
+	overflow:hidden;
+	word-break:normal;
+}
+
+.datatable td {
+	vertical-align:top;
+	background-color: #FFFFFF;
+	font-family:Arial, sans-serif;
+	font-size:14px;
+	padding:5px 5px;
+	border-style:solid;
+	border-width:1px;
+	overflow:hidden;
+	word-break:normal;
+	background-color: #FFFFFF;
+}
+
+textarea { resize:vertical ;}

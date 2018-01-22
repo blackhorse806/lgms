@@ -1,0 +1,79 @@
+#CLO_ULO_table {
+	border-collapse: collapse;
+	border: 1px solid black;
+}
+
+#CLO_ULO_table th {
+	background-color: #FFFFFF;
+}
+
+#CLO_ULO_table th, #CLO_ULO_table tr td, #CLO_ULO_table tr {
+	font-family:"Calibri (Body)";
+	font-size: 11pt;
+	border: 1px solid black;
+
+}
+
+#CLO_ULO_table select {
+	text-align: center;
+	border: 0px;
+	font-weight: bold;
+	background-color: #EEFFEE;
+	-webkit-appearance: none;
+	text-align-last:center;
+}
+
+.data {
+	text-align: center;
+	background-color: #EEFFEE;
+}
+
+.clo {
+	text-align: left;
+	background-color: #FFFFFF;
+}
+
+.num {
+	background-color: transparent;
+	text-align: center;
+}
+
+#CLO_ULO_table {
+  overflow: hidden;
+}
+
+#CLO_ULO_table tr:hover {
+  background-color: #ffa;
+}
+
+#CLO_ULO_table td {
+  position: relative;
+}
+
+#CLO_ULO_table td:hover::after {
+  content: "";
+  position: absolute;
+  background-color: #ffa;
+  left: 0;
+  top: -5000px;
+  height: 10000px;
+  width: 100%;
+  z-index: -1;
+}
+
+.cell_left {
+	text-align: left;
+}
+
+.unselectable {
+        user-select: none;
+        -moz-user-select: none;
+        -khtml-user-select: none;
+        -webkit-user-select: none;
+        -o-user-select: none;
+		-webkit-transition: all 0.5s ease;
+  -moz-transition: all 0.5s ease;
+  -ms-transition: all 0.5s ease;
+  -o-transition: all 0.5s ease;
+  transition: all 0.5s ease;
+}
